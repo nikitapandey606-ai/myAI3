@@ -1,56 +1,96 @@
+import { NextResponse } from "next/server";
 import { openai } from "@ai-sdk/openai";
-import { fireworks } from "@ai-sdk/fireworks";
-import { wrapLanguageModel, extractReasoningMiddleware } from "ai";
+import { Pinecone } from "@pinecone-database/pinecone";
+import {
+  PINECONE_INDEX_NAME,
+  PINECONE_TOP_K,
+} from "../../../config";
 
-export const MODEL = openai('gpt-4.1');
+const client = new Pinecone({
+  apiKey: process.env.PINECONE_API_KEY!,
+});
 
-// If you want to use a Fireworks model, uncomment the following code and set the FIREWORKS_API_KEY in Vercel
-// NOTE: Use middleware when the reasoning tag is different than think. (Use ChatGPT to help you understand the middleware)
-// export const MODEL = wrapLanguageModel({
-//     model: fireworks('fireworks/deepseek-r1-0528'),
-//     middleware: extractReasoningMiddleware({ tagName: 'think' }), // Use this only when using Deepseek
-// });
+const index = client.Index(PINECONE_INDEX_NAME);
 
+// 1) Embed user query
+async function embedQuery(input: string) {
+  const result = await openai.embeddings.create({
+    model: "text-embedding-3-small",
+    input,
+  });
 
-function getDateAndTime(): string {
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
-    const timeStr = now.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        timeZoneName: 'short'
-    });
-    return `The day today is ${dateStr} and the time right now is ${timeStr}.`;
+  return result.data[0].embedding;
 }
 
-export const DATE_AND_TIME = getDateAndTime();
+export async function POST(req: Request) {
+  try {
+    const { messages } = await req.json();
 
-export const AI_NAME = "Bingio";
-export const OWNER_NAME = "Granth & Nikita";
+    const userMessage = messages[messages.length - 1].content;
 
-export const WELCOME_MESSAGE = `Hello! I'm ${AI_NAME}, an AI assistant created by ${OWNER_NAME}.`
+    // 2) embed the query
+    const queryEmbedding = await embedQuery(userMessage);
 
-export const CLEAR_CHAT_TEXT = "New";
+    // 3) query Pinecone
+    const search = await index.query({
+      vector: queryEmbedding,
+      topK: PINECONE_TOP_K,
+      includeMetadata: true,
+    });
 
-export const MODERATION_DENIAL_MESSAGE_SEXUAL = "I can't discuss explicit sexual content. Please ask something else.";
-export const MODERATION_DENIAL_MESSAGE_SEXUAL_MINORS = "I can't discuss content involving minors in a sexual context. Please ask something else.";
-export const MODERATION_DENIAL_MESSAGE_HARASSMENT = "I can't engage with harassing content. Please be respectful.";
-export const MODERATION_DENIAL_MESSAGE_HARASSMENT_THREATENING = "I can't engage with threatening or harassing content. Please be respectful.";
-export const MODERATION_DENIAL_MESSAGE_HATE = "I can't engage with hateful content. Please be respectful.";
-export const MODERATION_DENIAL_MESSAGE_HATE_THREATENING = "I can't engage with threatening hate speech. Please be respectful.";
-export const MODERATION_DENIAL_MESSAGE_ILLICIT = "I can't discuss illegal activities. Please ask something else.";
-export const MODERATION_DENIAL_MESSAGE_ILLICIT_VIOLENT = "I can't discuss violent illegal activities. Please ask something else.";
-export const MODERATION_DENIAL_MESSAGE_SELF_HARM = "I can't discuss self-harm. If you're struggling, please reach out to a mental health professional or crisis helpline.";
-export const MODERATION_DENIAL_MESSAGE_SELF_HARM_INTENT = "I can't discuss self-harm intentions. If you're struggling, please reach out to a mental health professional or crisis helpline.";
-export const MODERATION_DENIAL_MESSAGE_SELF_HARM_INSTRUCTIONS = "I can't provide instructions related to self-harm. If you're struggling, please reach out to a mental health professional or crisis helpline.";
-export const MODERATION_DENIAL_MESSAGE_VIOLENCE = "I can't discuss violent content. Please ask something else.";
-export const MODERATION_DENIAL_MESSAGE_VIOLENCE_GRAPHIC = "I can't discuss graphic violent content. Please ask something else.";
-export const MODERATION_DENIAL_MESSAGE_DEFAULT = "Your message violates our guidelines. I can't answer that.";
+    const matches = search.matches ?? [];
 
-export const PINECONE_TOP_K = 40;
-export const PINECONE_INDEX_NAME = "my-ai";
+    // 4) If nothing is relevant enough → do NOT let GPT hallucinate
+    if (matches.length === 0 || matches[0].score < 0.70) {
+      return NextResponse.json({
+        role: "assistant",
+        content: "I don't know. The information is not available in my database.",
+      });
+    }
+
+    // 5) Build grounded context from Pinecone
+    const context = matches
+      .map(
+        (m, i) =>
+          `SOURCE ${i + 1} (score=${m.score}): ${m.metadata?.text ?? ""}`
+      )
+      .join("\n\n");
+
+    // 6) STRICT ANTI-HALLUCINATION SYSTEM PROMPT
+    const systemPrompt = `
+You must answer ONLY using the information in the SOURCES provided below.
+Do NOT use outside knowledge.
+If the answer is not in the sources, reply EXACTLY with "I don't know."
+Be concise.
+
+======== SOURCES ========
+${context}
+=========================
+`;
+
+    // 7) Call GPT with grounded context
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ],
+      temperature: 0,
+    });
+
+    const answer =
+      completion.choices?.[0]?.message?.content ??
+      "I don't know.";
+
+    return NextResponse.json({
+      role: "assistant",
+      content: answer,
+    });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json(
+      { error: "Server error" },
+      { status: 500 }
+    );
+  }
+}
