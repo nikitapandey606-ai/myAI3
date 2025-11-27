@@ -1,250 +1,151 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import styles from "./page.module.css"; // optional: if your project uses CSS modules; if not, global.css handles it
 
+type Role = "assistant" | "user";
 type Msg = {
   id: string;
-  role: "assistant" | "user";
+  role: Role;
   text: string;
-  time?: string;
+  time?: string | null;
+  streaming?: boolean;
 };
 
 function nowTime() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-/**
- * Lightweight keyword detectors.
- * These are intentionally simple and deterministic (no external libs),
- * so behaviour is predictable for your demo. You can replace with
- * an ML or embedding-based classifier later.
- */
-const MOOD_KEYWORDS: Record<string, string[]> = {
-  happy: ["happy", "upbeat", "good", "great", "joy", "excited"],
-  nostalgic: ["nostalgic", "nostalgia", "memories", "remember"],
-  relaxed: ["relax", "relaxed", "chill", "calm", "laid back", "lazy"],
-  sad: ["sad", "down", "depressed", "blue", "tear"],
-  stressed: ["stress", "stressed", "anxious", "overwhelmed"],
-  energetic: ["energetic", "hyped", "hyper"],
-};
-
-const CONTEXT_KEYWORDS: Record<string, string[]> = {
-  alone: ["alone", "solo", "by myself"],
-  friends: ["friends", "group", "with friends", "mates", "squad"],
-  family: ["family", "parents", "siblings"],
-  partner: ["partner", "girlfriend", "boyfriend", "date", "partner"],
-  study_break: ["study", "exam", "break", "study break"],
-};
-
-function detectMood(text: string): string | null {
-  const normalized = text.toLowerCase();
-  for (const [mood, keys] of Object.entries(MOOD_KEYWORDS)) {
-    if (keys.some((k) => normalized.includes(k))) return mood;
-  }
-  return null;
-}
-
-function detectContext(text: string): string | null {
-  const normalized = text.toLowerCase();
-  for (const [ctx, keys] of Object.entries(CONTEXT_KEYWORDS)) {
-    if (keys.some((k) => normalized.includes(k))) return ctx;
-  }
-  return null;
-}
-
-/** Very small demo recommender — returns 3 sample picks by mood */
-function recommendByMoodContext(mood: string | null, context: string | null) {
-  // Default fallback picks (titles + one-line emotional reason)
-  const library: Record<string, Array<{ title: string; type: string; short: string }>> = {
-    happy: [
-      { title: "The Intern", type: "Movie", short: "Warm, easygoing, and charming — gentle laughs." },
-      { title: "Brooklyn Nine-Nine", type: "Series", short: "Light, silly, perfect to relax with friends." },
-      { title: "Pitch Perfect", type: "Movie", short: "Catchy music, big laughs — great group watch." },
-    ],
-    nostalgic: [
-      { title: "The Princess Bride", type: "Movie", short: "Classic romantic-adventure that warms the heart." },
-      { title: "Cinema Paradiso", type: "Movie", short: "Tender, nostalgic ode to movies and memory." },
-      { title: "The Wonder Years", type: "Series", short: "Coming-of-age warmth and nostalgia." },
-    ],
-    relaxed: [
-      { title: "Chef", type: "Movie", short: "Slow, comforting, food + travel vibes." },
-      { title: "Parks and Recreation", type: "Series", short: "Wholesome comedy with gentle humour." },
-      { title: "About Time", type: "Movie", short: "Warm, reflective, low-pressure romance." },
-    ],
-    sad: [
-      { title: "Manchester by the Sea", type: "Movie", short: "Heavy but emotionally honest; catharsis." },
-      { title: "The Pursuit of Happyness", type: "Movie", short: "Heartfelt resilience and hope." },
-      { title: "This Is Us", type: "Series", short: "Emotional family drama with depth." },
-    ],
-    stressed: [
-      { title: "Brooklyn Nine-Nine", type: "Series", short: "Light, fast, and reliably funny." },
-      { title: "The Grand Budapest Hotel", type: "Movie", short: "Stylish, visually pleasing — distracting delight." },
-      { title: "How I Met Your Mother", type: "Series", short: "Comfort sitcom with short episodes." },
-    ],
-    energetic: [
-      { title: "Baby Driver", type: "Movie", short: "High-energy, music-driven thrill ride." },
-      { title: "Money Heist", type: "Series", short: "Adrenaline-packed, binge-friendly." },
-      { title: "Scott Pilgrim vs. The World", type: "Movie", short: "Fast-paced, visually playful, infectious energy." },
-    ],
-    default: [
-      { title: "The Good Place", type: "Series", short: "Quirky, uplifting, and clever." },
-      { title: "La La Land", type: "Movie", short: "Musical, emotional, and visually lovely." },
-      { title: "Chef", type: "Movie", short: "Comforting and pleasant for many moods." },
-    ],
-  };
-
-  const pickKey = mood && library[mood] ? mood : "default";
-  // If context is "friends", prefer lighter picks (just reorder for demo)
-  const picks = [...library[pickKey]];
-  if (context === "friends") {
-    // move comedic picks up if present (naive)
-    picks.sort((a, b) => (a.type === "Series" && a.short.toLowerCase().includes("comedy") ? -1 : 0));
-  }
-  return picks.slice(0, 3);
-}
-
-/** --- Component --- */
 export default function Page() {
   const [messages, setMessages] = useState<Msg[]>([
     {
-      id: "m1",
+      id: "seed-1",
       role: "assistant",
       text: "Hello! I'm Bingio — tell me how you feel and who you're watching with, and I'll recommend a film or series for your vibe.",
       time: nowTime(),
+      streaming: false,
     },
   ]);
 
-  // session state for the current chat (persist only for this session)
-  const [mood, setMood] = useState<string | null>(null);
-  const [context, setContext] = useState<string | null>(null);
-
   const [value, setValue] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
+  const abortControllers = useRef<Record<string, AbortController>>({});
 
+  // scroll-to-bottom after new messages
   useEffect(() => {
-    if (listRef.current) {
-      // scroll to bottom smoothly after small delay
-      setTimeout(() => {
-        if (!listRef.current) return;
-        listRef.current.scrollTop = listRef.current.scrollHeight + 600;
-      }, 50);
-    }
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight + 9999;
   }, [messages]);
 
-  function pushMessage(role: Msg["role"], text: string) {
-    const m: Msg = { id: crypto.randomUUID(), role, text, time: nowTime() };
+  function pushMessage(m: Msg) {
     setMessages((s) => [...s, m]);
-    return m;
   }
 
-  function handleSend(e?: React.FormEvent) {
+  function replaceMessage(id: string, patch: Partial<Msg>) {
+    setMessages((s) => s.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  }
+
+  // send user message and call backend streaming endpoint
+  async function sendMessage(text: string) {
+    if (!text.trim()) return;
+    const userMsg: Msg = {
+      id: "u-" + crypto.randomUUID(),
+      role: "user",
+      text,
+      time: nowTime(),
+      streaming: false,
+    };
+    pushMessage(userMsg);
+    setValue("");
+
+    // create assistant placeholder that will be streamed into
+    const assistantId = "a-" + crypto.randomUUID();
+    const assistantPlaceholder: Msg = {
+      id: assistantId,
+      role: "assistant",
+      text: "",
+      time: null,
+      streaming: true,
+    };
+    pushMessage(assistantPlaceholder);
+
+    // prepare abort controller so user can start new convo or cancel
+    const ac = new AbortController();
+    abortControllers.current[assistantId] = ac;
+
+    try {
+      // POST to your existing route. The API in this repo expects streaming responses.
+      // If your route expects a different shape, adjust the JSON payload accordingly.
+      const resp = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: [
+            // you can send whole session for better context — minimal example sends only user message
+            { role: "user", content: text },
+          ],
+          // include any flags your backend expects:
+          stream: true,
+        }),
+        signal: ac.signal,
+      });
+
+      if (!resp.ok || !resp.body) {
+        // non-streaming fallback: show error text or try to parse json
+        const txt = await resp.text();
+        replaceMessage(assistantId, { text: txt || "Error: model did not return a response", time: nowTime(), streaming: false });
+        return;
+      }
+
+      // Stream the response (works for endpoints that return plain text chunks)
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+      let buffer = "";
+
+      while (!done) {
+        const { value: chunk, done: readerDone } = await reader.read();
+        if (readerDone) {
+          done = true;
+          break;
+        }
+        const str = decoder.decode(chunk, { stream: true });
+        // some streaming endpoints send JSON events (like SSE). If so, you may need to parse.
+        // This generic logic appends any plain text to the assistant bubble.
+        buffer += str;
+        // update assistant bubble with buffer
+        replaceMessage(assistantId, { text: buffer, streaming: true });
+      }
+
+      // finalize
+      replaceMessage(assistantId, { text: buffer, streaming: false, time: nowTime() });
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        replaceMessage(assistantId, { text: "[Generation cancelled]", streaming: false, time: nowTime() });
+      } else {
+        replaceMessage(assistantId, { text: `[Error: ${err?.message || "unknown"}]`, streaming: false, time: nowTime() });
+      }
+    } finally {
+      // cleanup controller
+      delete abortControllers.current[assistantId];
+    }
+  }
+
+  // keyboard handler
+  async function onSubmit(e?: React.FormEvent) {
     if (e) e.preventDefault();
     const trimmed = value.trim();
     if (!trimmed) return;
-    pushMessage("user", trimmed);
-    setValue("");
-    handleUserInput(trimmed);
+    await sendMessage(trimmed);
   }
 
-  async function handleUserInput(text: string) {
-    // quick utility questions
-    const normalized = text.toLowerCase();
-    if (normalized.includes("who is your owner") || normalized.includes("owner")) {
-      // direct factual reply
-      pushMessage("assistant", "I was created by Granth & Nikita for the BINGIO project.");
-      return;
-    }
-    if (normalized.includes("help") || normalized.includes("what can you do")) {
-      pushMessage(
-        "assistant",
-        "I recommend movies and series based on your current mood and who you're watching with. Tell me how you're feeling and who's watching with you."
-      );
-      return;
-    }
-
-    // detect mood/context from the user's message
-    const foundMood = detectMood(text);
-    const foundContext = detectContext(text);
-
-    // Avoid repeating: we update state only if something new is found
-    let updated = false;
-    if (foundMood && foundMood !== mood) {
-      setMood(foundMood);
-      updated = true;
-      pushMessage("assistant", `Got it — mood set to "${foundMood}".`);
-    } else if (foundMood && foundMood === mood) {
-      // acknowledge briefly but don't echo
-      pushMessage("assistant", `Thanks — still registering a "${foundMood}" vibe.`);
-      updated = true;
-    }
-
-    if (foundContext && foundContext !== context) {
-      setContext(foundContext);
-      updated = true;
-      pushMessage("assistant", `Noted — you're watching ${foundContext}.`);
-    } else if (foundContext && foundContext === context) {
-      pushMessage("assistant", `Understood — still marked as "${foundContext}".`);
-      updated = true;
-    }
-
-    // If we didn't detect either, ask for clarification (but avoid repeating the same question)
-    if (!foundMood && !foundContext) {
-      // If we already have both, that means the user entered free text; give suggestions instead
-      if (mood && context) {
-        // produce recommendations
-        const picks = recommendByMoodContext(mood, context);
-        const replyLines = [
-          `Perfect — based on feeling "${mood}" and watching "${context}", here are a few picks:`,
-          "",
-          ...picks.map((p, idx) => `${idx + 1}. ${p.title} (${p.type}) — ${p.short}`),
-          "",
-          "Want one that's shorter/longer, or more of a comedy/drama?"
-        ];
-        pushMessage("assistant", replyLines.join("\n"));
-        return;
-      }
-
-      // If we only have mood or only context, ask for the missing piece
-      if (mood && !context) {
-        pushMessage("assistant", "Nice. Who are you watching with — friends, family, partner, or alone?");
-        return;
-      }
-      if (!mood && context) {
-        pushMessage("assistant", "Great. How are you feeling right now — upbeat, nostalgic, relaxed, sad, etc.?");
-        return;
-      }
-
-      // If neither present yet, ask for both but phrased friendly and not repeated
-      pushMessage(
-        "assistant",
-        "Could you tell me (1) how you're feeling right now (happy, nostalgic, stressed, relaxed, etc.) and (2) who you're watching with (alone, friends, family, partner)?"
-      );
-      return;
-    }
-
-    // If we updated only mood/context above, and now we have both -> give recommendations
-    const currentMood = foundMood || mood;
-    const currentContext = foundContext || context;
-    if (currentMood && currentContext) {
-      // small delay to feel natural
-      setTimeout(() => {
-        const picks = recommendByMoodContext(currentMood, currentContext);
-        const replyLines = [
-          `Nice — I have a few suggestions for ${currentMood} (watching with ${currentContext}):`,
-          "",
-          ...picks.map((p, idx) => `${idx + 1}. ${p.title} (${p.type}) — ${p.short}`),
-          "",
-          "Tell me if you want something lighter, darker, older, or shorter."
-        ];
-        pushMessage("assistant", replyLines.join("\n"));
-      }, 350);
-      return;
-    }
-
-    // Fallback (shouldn't often hit)
-    if (!updated) {
-      pushMessage("assistant", "Thanks — noted. Do you want a movie or a series right now?");
-    }
+  // optional: cancel active streams (if user taps New)
+  function cancelActive() {
+    Object.values(abortControllers.current).forEach((ac) => ac.abort());
+    abortControllers.current = {};
   }
 
   return (
@@ -252,21 +153,31 @@ export default function Page() {
       <header className="app-header">
         <div className="header-inner">
           <div className="header-left">
-            <div className="header-avatar" title="Bingio">🎞️</div>
+            <div className="header-avatar movie-avatar" title="Bingio">
+              <span className="logo-film">🎞️</span>
+            </div>
             <div>
               <div className="header-title">Chat with Bingio</div>
               <div className="header-sub">Emotion-aware movie & series recommendations</div>
             </div>
           </div>
 
-          <div>
+          <div className="header-actions">
             <button
-              style={{
-                borderRadius: 10,
-                padding: "8px 12px",
-                border: "1px solid rgba(255,255,255,0.04)",
-                background: "transparent",
-                color: "var(--muted)",
+              className="btn-new"
+              onClick={() => {
+                cancelActive();
+                // reset conversation
+                setMessages([
+                  {
+                    id: "seed-1",
+                    role: "assistant",
+                    text: "Hello! I'm Bingio — tell me how you feel and who you're watching with, and I'll recommend a film or series for your vibe.",
+                    time: nowTime(),
+                    streaming: false,
+                  },
+                ]);
+                setValue("");
               }}
             >
               + New
@@ -277,45 +188,249 @@ export default function Page() {
 
       <main className="main">
         <div className="chat-column">
-          <div
-            ref={listRef}
-            className="message-wall"
-            role="list"
-            aria-label="Messages"
-            style={{ minHeight: 280 }}
-          >
+          <div className="message-wall" ref={listRef}>
             {messages.map((m) => (
-              <div key={m.id} className={`message-row ${m.role === "assistant" ? "assistant" : "user"}`} role="listitem">
-                {m.role === "assistant" && <div className="message-avatar">B</div>}
-                <div className="bubble">
-                  <div>{m.text}</div>
-                  <div className="meta">{m.time}</div>
+              <div key={m.id} className={`message-row ${m.role === "assistant" ? "assistant" : "user"}`}>
+                <div className="message-avatar">{m.role === "assistant" ? "B" : "Y"}</div>
+                <div className={`bubble ${m.role === "user" ? "bubble-user" : ""}`}>
+                  <div className="bubble-text">
+                    {/* Preserve line breaks from model */}
+                    {m.text.split("\n").map((line, i) => (
+                      <div key={i}>{line}</div>
+                    ))}
+                    {/* while streaming, show subtle dots */}
+                    {m.streaming ? (
+                      <span className="typing-dots" aria-hidden>
+                        <span className="dot" />
+                        <span className="dot" />
+                        <span className="dot" />
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="meta">{m.time ?? ""}</div>
                 </div>
-                {m.role === "user" && <div className="message-avatar">Y</div>}
               </div>
             ))}
           </div>
         </div>
       </main>
 
-      <div className="input-sticky" aria-hidden={false}>
-        <form className="input-bar" onSubmit={(e) => handleSend(e)}>
+      <div className="input-sticky">
+        <form className="input-bar" onSubmit={onSubmit}>
           <input
-            type="text"
             placeholder="Describe your mood, who you're watching with, or ask anything..."
             value={value}
             onChange={(e) => setValue(e.target.value)}
             aria-label="Type your message"
+            autoFocus
           />
           <button type="submit" className="send-btn" aria-label="Send">
-            <span style={{ fontSize: 18 }}>🎬</span>
+            <span>🎬</span>
           </button>
         </form>
       </div>
 
-      <div style={{ height: 8 }} />
-      <div className="footer-note">© 2025 Granth & Nikita · Terms of Use · Powered by Ringel.AI</div>
-      <div style={{ height: 28 }} />
+      <footer className="footer-note">© 2025 Granth & Nikita · Terms of Use · Powered by Ringel.AI</footer>
+
+      <style jsx>{`
+        /* small scoped styles to avoid dependency changes — global.css will also apply */
+        .app-shell {
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          background: var(--background, #fff);
+        }
+        .app-header {
+          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+          padding: 16px 28px;
+          position: sticky;
+          top: 0;
+          background: var(--card, #fff);
+          z-index: 30;
+        }
+        .header-inner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+        .header-left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .header-avatar {
+          width: 44px;
+          height: 44px;
+          border-radius: 999px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--accent, #ef6f58);
+          color: white;
+          font-weight: 700;
+        }
+        .header-title {
+          font-weight: 700;
+          color: var(--foreground, #0f172a);
+        }
+        .header-sub {
+          font-size: 13px;
+          color: var(--muted-foreground, #667085);
+        }
+        .btn-new {
+          background: transparent;
+          border: 1px solid rgba(0, 0, 0, 0.06);
+          padding: 8px 12px;
+          border-radius: 8px;
+          cursor: pointer;
+        }
+
+        .main {
+          flex: 1;
+          display: flex;
+          justify-content: center;
+          padding: 22px;
+        }
+        .chat-column {
+          width: 100%;
+          max-width: 1100px;
+        }
+        .message-wall {
+          height: calc(100vh - 240px);
+          overflow: auto;
+          padding: 6px 12px;
+        }
+
+        .message-row {
+          display: flex;
+          align-items: flex-end;
+          gap: 12px;
+          margin: 18px 6px;
+        }
+        .message-row.user {
+          justify-content: flex-end;
+        }
+        .message-avatar {
+          width: 40px;
+          height: 40px;
+          border-radius: 999px;
+          background: #eef2ff;
+          color: #111827;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+        }
+
+        .bubble {
+          max-width: 820px;
+          background: #f3f7fb;
+          padding: 14px 18px;
+          border-radius: 12px;
+          position: relative;
+          box-shadow: 0 1px 0 rgba(16,24,40,0.03);
+        }
+        .bubble-user {
+          background: linear-gradient(135deg, #ef8a6a, #e26a4d);
+          color: white;
+        }
+        .bubble-text {
+          white-space: pre-wrap;
+          font-size: 16px;
+          line-height: 1.45;
+        }
+        .meta {
+          font-size: 12px;
+          color: #94a3b8;
+          margin-top: 8px;
+        }
+
+        .input-sticky {
+          position: sticky;
+          bottom: 18px;
+          left: 0;
+          right: 0;
+          display: flex;
+          justify-content: center;
+          padding: 0 24px 18px;
+        }
+        .input-bar {
+          width: 100%;
+          max-width: 1100px;
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          background: rgba(255,255,255,0.9);
+          padding: 12px;
+          border-radius: 999px;
+          box-shadow: 0 8px 30px rgba(15,23,42,0.08);
+        }
+        .input-bar input {
+          width: 100%;
+          border: none;
+          outline: none;
+          padding: 12px 16px;
+          font-size: 16px;
+        }
+        .send-btn {
+          width: 52px;
+          height: 52px;
+          border-radius: 999px;
+          background: linear-gradient(135deg, #ef8a6a, #e26a4d);
+          border: none;
+          color: white;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18px;
+        }
+
+        /* typing dots animation */
+        .typing-dots {
+          display: inline-flex;
+          gap: 6px;
+          margin-left: 8px;
+          align-items: center;
+        }
+        .typing-dots .dot {
+          width: 6px;
+          height: 6px;
+          background: #9aa4b2;
+          border-radius: 50%;
+          opacity: 0.9;
+          animation: blink 1s infinite ease-in-out;
+        }
+        .typing-dots .dot:nth-child(2) {
+          animation-delay: 0.12s;
+        }
+        .typing-dots .dot:nth-child(3) {
+          animation-delay: 0.24s;
+        }
+        @keyframes blink {
+          0% {
+            transform: translateY(0);
+            opacity: 0.18;
+          }
+          50% {
+            transform: translateY(-4px);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(0);
+            opacity: 0.18;
+          }
+        }
+
+        .footer-note {
+          padding: 18px;
+          text-align: center;
+          color: #6b7280;
+          font-size: 13px;
+        }
+      `}</style>
     </div>
   );
 }
