@@ -15,12 +15,12 @@ import { ChatHeader } from "@/app/parts/chat-header";
 import { ChatHeaderBlock } from "@/app/parts/chat-header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UIMessage } from "ai";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AI_NAME, CLEAR_CHAT_TEXT, OWNER_NAME, WELCOME_MESSAGE } from "@/config";
 import Image from "next/image";
 import Link from "next/link";
 
-/* ------------------ form schema + localStorage helpers (unchanged) ------------------ */
+/* ------------------ form schema + storage helpers (unchanged) ------------------ */
 const formSchema = z.object({
   message: z
     .string()
@@ -61,7 +61,7 @@ const saveMessagesToStorage = (messages: UIMessage[], durations: Record<string, 
   }
 };
 
-/* ------------------ Page component (logic preserved) ------------------ */
+/* ------------------ Chat page component ------------------ */
 export default function Chat() {
   const [isClient, setIsClient] = useState(false);
   const [durations, setDurations] = useState<Record<string, number>>({});
@@ -73,6 +73,9 @@ export default function Chat() {
   const { messages, sendMessage, status, stop, setMessages } = useChat({
     messages: initialMessages,
   });
+
+  // Reference to the scroll container that holds the messages
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -87,17 +90,13 @@ export default function Chat() {
     }
   }, [isClient, messages, durations]);
 
+  // Show welcome message once if empty
   useEffect(() => {
     if (isClient && initialMessages.length === 0 && !welcomeShownRef.current) {
       const welcomeMessage: UIMessage = {
         id: `welcome-${Date.now()}`,
         role: "assistant",
-        parts: [
-          {
-            type: "text",
-            text: WELCOME_MESSAGE,
-          },
-        ],
+        parts: [{ type: "text", text: WELCOME_MESSAGE }],
       };
       setMessages([welcomeMessage]);
       saveMessagesToStorage([welcomeMessage], {});
@@ -105,14 +104,48 @@ export default function Chat() {
     }
   }, [isClient, initialMessages.length, setMessages]);
 
+  // Auto-scroll behavior:
+  // - Scroll to bottom on mount
+  // - Scroll to bottom when the last message is from the assistant (new assistant reply)
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    // No messages -> nothing to do
+    if (!messages || messages.length === 0) return;
+
+    const last = messages[messages.length - 1];
+
+    // Only auto-scroll when the assistant sent the last message.
+    // This prevents the view jumping while the user types or when the user message is appended.
+    if (last.role === "assistant") {
+      // small timeout to allow DOM to render
+      const t = setTimeout(() => {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: "smooth",
+        });
+      }, 50);
+
+      return () => clearTimeout(t);
+    }
+  }, [messages]);
+
+  const handleDurationChange = (key: string, duration: number) => {
+    setDurations((prev) => ({ ...prev, [key]: duration }));
+  };
+
+  // form
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { message: "" },
   });
 
   function onSubmit(data: z.infer<typeof formSchema>) {
+    // send message and clear input
     sendMessage({ text: data.message });
     form.reset();
+    // do NOT auto-scroll here — we intentionally avoid it so the UI doesn't jump while typing
   }
 
   function clearChat() {
@@ -121,10 +154,6 @@ export default function Chat() {
     saveMessagesToStorage([], {});
     toast.success("Chat cleared");
   }
-
-  const handleDurationChange = (key: string, duration: number) => {
-    setDurations((prev) => ({ ...prev, [key]: duration }));
-  };
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] antialiased">
@@ -152,15 +181,19 @@ export default function Chat() {
       </header>
 
       {/* Scrollable center column */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1">
         <div className="flex justify-center px-4 py-6">
           <div className="w-full max-w-3xl">
-            {/* Message container — constrained height so composer doesn't overlap */}
+            {/* The scroll container. All messages render inside it.
+                We set a maxHeight so composer area is always visible.
+            */}
             <div
+              ref={scrollContainerRef}
               className="overflow-y-auto"
               style={{
-                maxHeight: "calc(100vh - 260px)", /* header + composer + margins */
+                maxHeight: "calc(100vh - 260px)", // header + composer + margins
                 paddingRight: "8px",
+                scrollBehavior: "smooth",
               }}
               aria-live="polite"
             >
