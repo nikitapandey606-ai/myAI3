@@ -1,9 +1,21 @@
-/* ---------- QUICK FIX: constrain runaway images and left-column overflow ---------- */
-/* Place this at the END of app/globals.css */
+/* Self-contained global stylesheet (no Tailwind dependency required)
+   Replaces app/globals.css to produce a usable dark chat UI immediately.
+   Paste this entire file as-is and redeploy / hard refresh.
+*/
 
-/* 1) Force any unexpectedly-large images/SVGs to a reasonable max so nothing explodes.
-   This is intentionally conservative (160px). If you later want larger posters, we can
-   target them specifically. */
+/* Basic reset */
+* { box-sizing: border-box; }
+html, body, #__next { height: 100%; margin: 0; padding: 0; }
+body {
+  background: #0B0B0C !important;
+  color: #E8E8E8 !important;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.45;
+}
+
+/* Constrain runaway images / placeholders */
 img, svg, picture {
   max-width: 160px !important;
   max-height: 160px !important;
@@ -13,63 +25,203 @@ img, svg, picture {
   display: inline-block !important;
 }
 
-/* 2) Constrain any image placed directly as a child of body (rare) */
+/* If a 300x300 placeholder was placed directly under body, clamp it too */
 body > img, body > svg, body > picture {
   max-width: 160px !important;
   max-height: 160px !important;
 }
 
-/* 3) Sidebar / left-column guard: keep left column from overflowing the page */
-.app-sidebar,
-.sidebar,
-.left-column,
-.aside {
-  max-width: 280px !important;
-  width: 280px !important;
-  box-sizing: border-box !important;
-  overflow: hidden !important;
+/* Page shell: center content and limit width */
+.app-container, .page-wrapper, main {
+  max-width: 1152px; /* 72rem */
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
-/* 4) Header avatar helper (if an avatar image exists inside header) */
-.header-avatar img,
-.header-avatar svg {
-  max-width: 48px !important;
-  max-height: 48px !important;
-  width: 48px !important;
-  height: 48px !important;
-  object-fit: cover !important;
+/* Header */
+header {
+  background: #0F0F10;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  padding: 18px 0;
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+.header-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 9999px;
+  background: #141414;
+  color: #FF2C71;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+}
+.header-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+.header-sub {
+  font-size: 13px;
+  color: rgba(255,255,255,0.65);
 }
 
-/* 5) Make any overly tall vertical buttons (like the +New rectangle) respect container */
-button, .btn, .new-button, .plus-new {
-  max-height: 44px !important;
-  height: auto !important;
-  line-height: 1 !important;
+/* Layout: chat area & input */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 86px); /* leaves room for header & input */
 }
 
-/* 6) Defensive: ensure large absolute-positioned elements don't cover whole viewport */
-*[style*="position:absolute"],
-*[style*="position: fixed"] {
-  max-width: 100% !important;
-  max-height: 90vh !important;
-  box-sizing: border-box !important;
+.chat-area {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 20px 16px;
 }
 
-/* 7) If you used a placeholder 300x300 image (placeholder.com etc), aggressively clamp it */
-img[src*="300x300"],
-img[src*="300%20x%20300"],
-img[src*="300x300.png"],
-img[src*="300x300.jpg"] {
-  max-width: 160px !important;
-  max-height: 160px !important;
+/* Message wall container */
+[data-slot="message-wall"], .message-wall, .messages-list {
+  max-width: 1152px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-bottom: 12px;
 }
 
-/* minor nicety: allow page layout to center cleanly */
-.app-container, .max-w-4xl, .mx-auto {
-  margin-left: auto !important;
-  margin-right: auto !important;
+/* Message rows */
+[data-role="assistant"],
+[data-role="user"],
+.message-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 12px 0;
+  width: 100%;
 }
 
-/* keep fallback for scrollbars & motion (no layout changes) */
+/* Avatar column */
+.message-row .avatar,
+[data-role="assistant"] > div:first-child,
+[data-role="user"] > div:first-child {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: #141414;
+  color: #FF2C71;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Bubbles */
+[data-slot="assistant-bubble"],
+.assistant-bubble,
+.user-bubble,
+.message-bubble {
+  padding: 12px 14px;
+  border-radius: 12px;
+  max-width: 860px;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+/* Assistant bubble styling */
+[data-role="assistant"] [data-slot="assistant-bubble"],
+[data-role="assistant"] .assistant-bubble {
+  background: rgba(255,255,255,0.04);
+  color: #E8E8E8;
+  border: 1px solid rgba(255,255,255,0.03);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+}
+
+/* User bubble styling (align right) */
+[data-role="user"] {
+  justify-content: flex-end;
+}
+[data-role="user"] .message-bubble,
+[data-role="user"] .user-bubble {
+  background: linear-gradient(180deg, rgba(255,44,113,0.12), rgba(255,44,113,0.06));
+  color: #FFF;
+  border: 1px solid rgba(255,44,113,0.12);
+}
+
+/* timestamps (small) */
+.message-meta, .message-time {
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.45);
+}
+
+/* Chat input area */
+.chat-input-wrap {
+  border-top: 1px solid rgba(255,255,255,0.03);
+  padding: 12px 16px;
+  background: #0B0B0C;
+}
+.chat-input-form {
+  max-width: 1152px;
+  margin: 0 auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.chat-input-form input[type="text"],
+.chat-input-form input[aria-label],
+.chat-input-form textarea {
+  flex: 1 1 auto;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.02);
+  color: #E8E8E8;
+  outline: none;
+  font-size: 14px;
+}
+.chat-input-form input::placeholder,
+.chat-input-form textarea::placeholder {
+  color: rgba(255,255,255,0.36);
+}
+.chat-input-form button {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: linear-gradient(180deg, #FF2C71, #E72F6A);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Footer small print */
+.site-footer {
+  max-width: 1152px;
+  margin: 18px auto;
+  color: rgba(255,255,255,0.45);
+  font-size: 13px;
+}
+
+/* small utilities */
 .fade-in { animation: fadeIn 0.22s ease-out both; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Defensive: ensure any absolute / fixed item does not overflow viewport */
+*[style*="position:absolute"],
+*[style*="position: fixed"] {
+  max-width: 100vw !important;
+  max-height: 90vh !important;
+  box-sizing: border-box !important;
+  overflow: auto !important;
+}
