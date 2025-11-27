@@ -1,95 +1,96 @@
-// server/api/groundedAnswer.ts (or app/api/chat/route.ts handler)
-import { OpenAI } from "openai"; // or your openai sdk import
-import { PineconeClient } from "@pinecone-database/pinecone";
-import { PINECONE_TOP_K, PINECONE_INDEX_NAME, MODEL } from "../config"; // adjust path
+import { openai } from "@ai-sdk/openai";
+import { wrapLanguageModel, extractReasoningMiddleware } from "ai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+export const MODEL = openai("gpt-4.1");
 
-const pinecone = new PineconeClient();
-await pinecone.init({ apiKey: process.env.PINECONE_API_KEY, environment: process.env.PINECONE_ENV });
-
-const SIMILARITY_THRESHOLD = 0.75; // tune this
-
-async function embedQuery(query: string) {
-  const resp = await openai.embeddings.create({
-    model: "text-embedding-3-small", // choose model you use for embeddings
-    input: query,
+// Date & Time (India Standard Time)
+function getDateAndTime(): string {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-GB", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "Asia/Kolkata"
   });
-  return resp.data[0].embedding;
-}
-
-async function fetchFromPinecone(vector: number[], topK = PINECONE_TOP_K) {
-  const index = pinecone.Index(PINECONE_INDEX_NAME);
-  const queryResp = await index.query({
-    vector,
-    topK,
-    includeMetadata: true,
-    includeValues: false,
+  const timeStr = now.toLocaleTimeString("en-GB", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+    timeZone: "Asia/Kolkata"
   });
-  return queryResp.matches || [];
+  return "The day today is " + dateStr + " and the time right now is " + timeStr + ".";
 }
 
-function buildGroundedPrompt(userQuery: string, matches: any[]) {
-  // We'll include short snippets plus citation id
-  const sourcesText = matches
-    .map((m: any, i: number) => {
-      const meta = m.metadata || {};
-      // make a safe short snippet (truncate)
-      const snippet = (meta.text || meta.content || "").slice(0, 800).replace(/\n+/g, " ");
-      const id = meta.id || meta.source || `doc-${i + 1}`;
-      return `SOURCE ${i + 1}: [id=${id}]\n${snippet}\n`;
-    })
-    .join("\n---\n");
+export const DATE_AND_TIME = getDateAndTime();
 
-  // system instruction: very strict
-  const system = `You are BINGIO. Answer the user's question using ONLY the information from the provided SOURCES.
-Do NOT invent facts, do NOT use outside knowledge beyond the sources.
-If the answer is not contained in the sources, reply exactly: "I don't know."`;
+// Branding
+export const AI_NAME = "Bingio";
+export const OWNER_NAME = "Granth & Nikita";
 
-  const userPrompt = `User question: ${userQuery}\n\nUse the sources below to answer. Cite sources inline like [SOURCE 1] when referring to them.`;
+export const WELCOME_MESSAGE =
+  "Hey, I'm Bingio - your movie buddy, mood matcher, and vibe curator. Let's find something to watch!";
 
-  return `${system}\n\n${sourcesText}\n\n${userPrompt}`;
-}
+export const CLEAR_CHAT_TEXT = "New";
 
-export default async function handler(req, res) {
-  try {
-    const { query } = req.body; // user query text
+// Moderation Messages (ASCII-only)
 
-    // 1) embed query
-    const qvec = await embedQuery(query);
+// Sexual Content (adult explicit)
+export const MODERATION_DENIAL_MESSAGE_SEXUAL =
+  "I keep things clean here, so I cannot help with explicit sexual content. I can suggest romantic or emotional movies instead.";
 
-    // 2) fetch from pinecone
-    const matches = await fetchFromPinecone(qvec);
+// Sexual content involving minors
+export const MODERATION_DENIAL_MESSAGE_SEXUAL_MINORS =
+  "I cannot discuss anything involving minors in a sexual context. If you want, I can suggest respectful coming-of-age films.";
 
-    // 3) optional: convert raw pinecone score to similarity and filter
-    // Pinecone returns 'score' (depends on index metric - often cosine). We'll use it directly.
-    const goodMatches = matches.filter((m: any) => (m.score ?? 0) >= SIMILARITY_THRESHOLD).slice(0, PINECONE_TOP_K);
+// Harassment (general)
+export const MODERATION_DENIAL_MESSAGE_HARASSMENT =
+  "I am here for good vibes only, so I cannot engage with harassment. Want a feel-good movie instead?";
 
-    if (!goodMatches.length) {
-      // No good match: be honest and refuse to hallucinate
-      return res.status(200).json({ answer: "I don't know.", reasons: "No relevant documents found." });
-    }
+// Harassment with threats
+export const MODERATION_DENIAL_MESSAGE_HARASSMENT_THREATENING =
+  "I cannot help with threatening or aggressive messages. If you are upset, I can recommend calming or uplifting films.";
 
-    // 4) build prompt (only include the good matches)
-    const groundedPrompt = buildGroundedPrompt(query, goodMatches);
+// Hate speech
+export const MODERATION_DENIAL_MESSAGE_HATE =
+  "I cannot assist with hateful content. If you want thoughtful films about social themes, I can suggest some.";
 
-    // 5) call LLM with deterministic params
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4.1", // or whichever model you prefer
-      messages: [
-        { role: "system", content: groundedPrompt },
-        // If you want the model to be brief:
-        { role: "user", content: "Answer concisely. 2-3 sentences max." }
-      ],
-      temperature: 0,
-      max_tokens: 400,
-    });
+// Hate speech + threats
+export const MODERATION_DENIAL_MESSAGE_HATE_THREATENING =
+  "I cannot help with violent or threatening hate speech. I can recommend impactful films that explore tough topics respectfully.";
 
-    const answer = completion.choices?.[0]?.message?.content?.trim() ?? "I don't know.";
+// Illegal activities
+export const MODERATION_DENIAL_MESSAGE_ILLICIT =
+  "I cannot help with illegal activities. But I can find great movies based on any vibe you are in.";
 
-    return res.status(200).json({ answer, sources: goodMatches.map((m: any, i: number) => ({ source: m.metadata?.id || `SOURCE ${i+1}`, score: m.score })) });
-  } catch (err) {
-    console.error("grounded error", err);
-    return res.status(500).json({ error: String(err) });
-  }
-}
+// Illegal + violent activities
+export const MODERATION_DENIAL_MESSAGE_ILLICIT_VIOLENT =
+  "I cannot assist with violent or illegal actions. Want a safe thriller or action movie recommendation instead?";
+
+// Self-harm (general distress)
+export const MODERATION_DENIAL_MESSAGE_SELF_HARM =
+  "I am really sorry you are feeling this way. I cannot help with self-harm topics. Please consider reaching out to someone you trust or a helpline. I can suggest calming movies if you would like.";
+
+// Self-harm intent
+export const MODERATION_DENIAL_MESSAGE_SELF_HARM_INTENT =
+  "I cannot help with self-harm intentions. If you are in danger, please contact emergency services or a crisis hotline. Want something comforting to watch?";
+
+// Self-harm instructions
+export const MODERATION_DENIAL_MESSAGE_SELF_HARM_INSTRUCTIONS =
+  "I cannot provide any instructions related to self-harm. Please reach out to someone who can support you. I am here if you want calming or grounding movie suggestions.";
+
+// Violence (non-graphic)
+export const MODERATION_DENIAL_MESSAGE_VIOLENCE =
+  "I cannot discuss violent or harmful actions. But I can suggest intense, dramatic, or thrilling movies if that is the vibe.";
+
+// Graphic violence
+export const MODERATION_DENIAL_MESSAGE_VIOLENCE_GRAPHIC =
+  "I cannot help with graphic violent content. But I can suggest suspenseful or action-packed movies with lighter intensity.";
+
+// Default fallback
+export const MODERATION_DENIAL_MESSAGE_DEFAULT =
+  "I cannot help with that request. If you are here for movie or vibe suggestions, I have plenty of picks.";
+
+// Vector DB Settings
+export const PINECONE_TOP_K = 40;
+export const PINECONE_INDEX_NAME = "my-ai";
