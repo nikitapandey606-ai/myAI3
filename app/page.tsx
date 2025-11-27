@@ -11,21 +11,14 @@ import { Input } from "@/components/ui/input";
 import { useChat } from "@ai-sdk/react";
 import { ArrowUp, Loader2, Plus, Square } from "lucide-react";
 import { MessageWall } from "@/components/messages/message-wall";
-import { ChatHeader } from "@/app/parts/chat-header";
-import { ChatHeaderBlock } from "@/app/parts/chat-header";
+import { ChatHeader, ChatHeaderBlock } from "@/app/parts/chat-header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UIMessage } from "ai";
 import { useEffect, useState, useRef } from "react";
-import {
-  AI_NAME,
-  CLEAR_CHAT_TEXT,
-  OWNER_NAME,
-  WELCOME_MESSAGE,
-} from "@/config";
+import { AI_NAME, CLEAR_CHAT_TEXT, OWNER_NAME, WELCOME_MESSAGE } from "@/config";
 import Image from "next/image";
 import Link from "next/link";
 
-/* ------------------ Form schema ------------------ */
 const formSchema = z.object({
   message: z
     .string()
@@ -33,7 +26,6 @@ const formSchema = z.object({
     .max(2000, "Message must be at most 2000 characters."),
 });
 
-/* ------------------ LocalStorage helpers ------------------ */
 const STORAGE_KEY = "chat-messages";
 
 type StorageData = {
@@ -44,27 +36,31 @@ type StorageData = {
 const loadMessagesFromStorage = () => {
   if (typeof window === "undefined") return { messages: [], durations: {} };
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { messages: [], durations: {} };
-    return JSON.parse(raw);
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return { messages: [], durations: {} };
+    const parsed = JSON.parse(stored);
+    return {
+      messages: parsed.messages || [],
+      durations: parsed.durations || {},
+    };
   } catch {
     return { messages: [], durations: {} };
   }
 };
 
-const saveMessagesToStorage = (messages: UIMessage[], durations: any) => {
+const saveMessagesToStorage = (messages: UIMessage[], durations: Record<string, number>) => {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, durations }));
+  const data: StorageData = { messages, durations };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 };
 
-/* ------------------ Chat Component ------------------ */
 export default function Chat() {
   const [isClient, setIsClient] = useState(false);
   const [durations, setDurations] = useState<Record<string, number>>({});
-  const welcomeShown = useRef(false);
+  const welcomeMessageShownRef = useRef(false);
 
-  const stored = loadMessagesFromStorage();
-  const [initialMessages] = useState(stored.messages ?? []);
+  const stored = typeof window !== "undefined" ? loadMessagesFromStorage() : { messages: [], durations: {} };
+  const [initialMessages] = useState<UIMessage[]>(stored.messages);
 
   const { messages, sendMessage, status, stop, setMessages } = useChat({
     messages: initialMessages,
@@ -72,174 +68,152 @@ export default function Chat() {
 
   useEffect(() => {
     setIsClient(true);
-    setDurations(stored.durations ?? {});
-    setMessages(stored.messages ?? []);
+    setDurations(stored.durations);
+    setMessages(stored.messages);
   }, []);
 
   useEffect(() => {
     if (isClient) saveMessagesToStorage(messages, durations);
   }, [messages, durations, isClient]);
 
-  const handleDuration = (key: string, duration: number) =>
-    setDurations((d) => ({ ...d, [key]: duration }));
+  const handleDurationChange = (key: string, duration: number) => {
+    setDurations(prev => ({ ...prev, [key]: duration }));
+  };
 
-  /* Show welcome message on fresh chat */
+  // Welcome message on first load
   useEffect(() => {
-    if (!isClient || initialMessages.length > 0 || welcomeShown.current) return;
-    const welcome: UIMessage = {
-      id: `welcome-${Date.now()}`,
-      role: "assistant",
-      parts: [{ type: "text", text: WELCOME_MESSAGE }],
-    };
-    welcomeShown.current = true;
-    setMessages([welcome]);
-    saveMessagesToStorage([welcome], {});
+    if (isClient && initialMessages.length === 0 && !welcomeMessageShownRef.current) {
+      const welcomeMessage: UIMessage = {
+        id: `welcome-${Date.now()}`,
+        role: "assistant",
+        parts: [{ type: "text", text: WELCOME_MESSAGE }],
+      };
+      setMessages([welcomeMessage]);
+      saveMessagesToStorage([welcomeMessage], {});
+      welcomeMessageShownRef.current = true;
+    }
   }, [isClient, initialMessages.length, setMessages]);
 
-  /* Form */
+  // Form
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { message: "" },
   });
 
-  const onSubmit = (data: any) => {
+  function onSubmit(data: z.infer<typeof formSchema>) {
     sendMessage({ text: data.message });
     form.reset();
-  };
+  }
 
-  const clearChat = () => {
-    setMessages([]);
-    setDurations({});
-    saveMessagesToStorage([], {});
+  function clearChat() {
+    const newMessages: UIMessage[] = [];
+    const newDurations = {};
+    setMessages(newMessages);
+    setDurations(newDurations);
+    saveMessagesToStorage(newMessages, newDurations);
     toast.success("Chat cleared");
-  };
+  }
 
   return (
-    <div className="page-root min-h-screen bg-background text-foreground flex flex-col">
-      {/* HEADER */}
-      <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-border">
-        <div className="mx-auto max-w-4xl px-4 h-16 flex items-center justify-between">
+    <div className="flex h-screen justify-center font-sans bg-[#FFEDD0]">
+      <main className="w-full h-screen relative">
 
-          <div className="w-10" />
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10 shadow-md">
-              <AvatarImage src="/logo.png" alt="Logo" />
-              <AvatarFallback>B</AvatarFallback>
-            </Avatar>
-
-            <div className="flex flex-col leading-tight">
-              <span className="font-semibold text-sm">
-                Chat with {AI_NAME}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                Your mood-tuned movie companion
-              </span>
-            </div>
-          </div>
-
-          <Button variant="outline" size="sm" onClick={clearChat}>
-            <Plus className="w-4 h-4 mr-1" /> {CLEAR_CHAT_TEXT}
-          </Button>
+        {/* HEADER */}
+        <div className="fixed top-0 left-0 right-0 z-50 bg-[#FFEDD0]/70 backdrop-blur-md pb-16">
+          <ChatHeader>
+            <ChatHeaderBlock />
+            <ChatHeaderBlock className="justify-center items-center">
+              <Avatar className="size-8 ring-1 ring-orange-500">
+                <AvatarImage src="/logo.png" />
+                <AvatarFallback>
+                  <Image src="/logo.png" width={36} height={36} alt="logo" />
+                </AvatarFallback>
+              </Avatar>
+              <p className="tracking-tight text-orange-700 font-semibold">Chat with {AI_NAME}</p>
+            </ChatHeaderBlock>
+            <ChatHeaderBlock className="justify-end">
+              <Button variant="outline" size="sm" onClick={clearChat}>
+                <Plus className="size-4" />
+                {CLEAR_CHAT_TEXT}
+              </Button>
+            </ChatHeaderBlock>
+          </ChatHeader>
         </div>
-      </header>
 
-      {/* CONTENT */}
-      <main className="flex-1 flex justify-center px-4 pb-32">
-        <div className="w-full max-w-2xl pt-6">
-          <div
-            className="chat-scroll overflow-y-auto pr-1"
-            style={{ maxHeight: "calc(100vh - 230px)" }}
-          >
-            {!isClient ? (
-              <div className="flex justify-center py-10">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <MessageWall
-                messages={messages}
-                status={status}
-                durations={durations}
-                onDurationChange={handleDuration}
-              />
+        {/* MESSAGES SCROLL */}
+        <div className="h-screen overflow-y-auto px-5 pt-[100px] pb-[150px]">
+          <div className="flex flex-col items-center">
+
+            <MessageWall
+              messages={messages.map(m => ({
+                ...m,
+                className: m.role === "assistant" ? "ai-message" : "user-message",
+              }))}
+              status={status}
+              durations={durations}
+              onDurationChange={handleDurationChange}
+            />
+
+            {status === "submitted" && (
+              <Loader2 className="size-4 animate-spin text-orange-600" />
             )}
           </div>
-
-          {/* Small loader */}
-          {status === "submitted" && (
-            <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" /> Thinking…
-            </div>
-          )}
         </div>
-      </main>
 
-      {/* COMPOSER */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-border py-4 px-4">
-        <div className="max-w-2xl mx-auto">
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <FieldGroup>
-              <Controller
-                name="message"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel className="sr-only">Message</FieldLabel>
+        {/* INPUT FIELD */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#FFEDD0]/70 backdrop-blur-xl pt-10">
+          <div className="w-full px-5 pb-2 flex justify-center">
+            <form className="max-w-3xl w-full" onSubmit={form.handleSubmit(onSubmit)}>
+              <FieldGroup>
+                <Controller
+                  name="message"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel className="sr-only">Message</FieldLabel>
 
-                    <div className="relative">
-                      <Input
-                        {...field}
-                        placeholder="Type your message here…"
-                        className="h-14 rounded-full px-5 pr-14 shadow-md bg-white text-sm"
-                        disabled={status === "streaming"}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            form.handleSubmit(onSubmit)();
-                          }
-                        }}
-                      />
+                      <div className="relative h-14">
+                        <Input
+                          {...field}
+                          placeholder="Type your message..."
+                          className="h-14 pr-14 pl-5 rounded-full bg-white/80 text-orange-900 placeholder:text-orange-500"
+                          disabled={status === "streaming"}
+                          autoComplete="off"
+                        />
 
-                      {/* Send Button */}
-                      {(status === "ready" || status === "error") && (
-                        <Button
-                          type="submit"
-                          size="icon"
-                          className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full"
-                          disabled={!field.value.trim()}
-                        >
-                          <ArrowUp className="w-4 h-4" />
-                        </Button>
-                      )}
+                        {status === "ready" && (
+                          <Button
+                            type="submit"
+                            size="icon"
+                            disabled={!field.value.trim()}
+                            className="absolute right-3 top-3 rounded-full bg-orange-600 hover:bg-orange-700"
+                          >
+                            <ArrowUp className="text-white" />
+                          </Button>
+                        )}
 
-                      {/* Stop button */}
-                      {(status === "streaming" || status === "submitted") && (
-                        <Button
-                          size="icon"
-                          className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full"
-                          onClick={() => stop()}
-                        >
-                          <Square className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </Field>
-                )}
-              />
-            </FieldGroup>
-          </form>
+                        {status !== "ready" && (
+                          <Button
+                            size="icon"
+                            className="absolute right-3 top-3 rounded-full bg-gray-400"
+                            onClick={stop}
+                          >
+                            <Square className="text-white" />
+                          </Button>
+                        )}
+                      </div>
+                    </Field>
+                  )}
+                />
+              </FieldGroup>
+            </form>
+          </div>
 
-          <div className="mt-3 text-center text-xs text-muted-foreground">
-            © {new Date().getFullYear()} {OWNER_NAME} &nbsp;
-            <Link href="/terms" className="underline">
-              Terms of Use
-            </Link>{" "}
-            · Powered by{" "}
-            <Link href="https://ringel.ai/" className="underline">
-              Ringel.AI
-            </Link>
+          <div className="w-full text-center text-xs text-orange-700 pb-4">
+            © {new Date().getFullYear()} {OWNER_NAME} • <Link href="/terms" className="underline">Terms</Link> • Powered by RingelAI
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
