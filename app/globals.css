@@ -1,8 +1,8 @@
 /* app/globals.css
    Netflix × Bingio cinematic theme
-   - Pure black background
+   - Dark Netflix background
+   - Netflix red accent
    - Warm off-white primary text
-   - Strong Bingio orange accent (used across UI)
    - No JS changes; purely visual CSS (safe)
 */
 
@@ -13,15 +13,15 @@
 
 /* ---------- Theme variables ---------- */
 :root{
-  --bg: #FFD580;                 /* pure black */
-  --surface: #0f0f10;            /* slightly lighter cards */
-  --text: #f7f3ef;               /* warm off-white */
-  --muted: #bfb7b0;              /* muted secondary */
-  --accent: #ff5f2e;             /* Bingio orange (primary) */
-  --accent-2: #ff7a52;           /* secondary orange for gradients */
-  --accent-glow: rgba(255,95,46,0.13);
-  --border: rgba(255,255,255,0.04);
-  --input: rgba(255,255,255,0.03);
+  --bg: #141414;                 /* Netflix dark gray */
+  --surface: #1f1f1f;            /* slightly lighter cards */
+  --text: #e5e5e5;               /* Netflix off-white */
+  --muted: #8c8c8c;              /* muted secondary */
+  --accent: #e50914;             /* Netflix red (primary) */
+  --accent-2: #b20710;           /* deeper red for gradients */
+  --accent-glow: rgba(229,9,20,0.15);
+  --border: rgba(255,255,255,0.08);
+  --input: rgba(255,255,255,0.06);
   --shadow-lg: 0 20px 60px rgba(0,0,0,0.8);
   --shadow-sm: 0 8px 28px rgba(0,0,0,0.6);
   --radius: 0.9rem;
@@ -140,41 +140,41 @@ body::after {
 /* tool label */
 .message-tool { color:var(--muted); font-size:13px; margin:10px 0; display:inline-flex; gap:8px; align-items:center; }
 
-/* === Assistant bubble: light / readable on light orange bg === */
+/* === Assistant bubble: dark card with light text === */
 .ai-message {
   max-width: 72ch;
   margin: 20px 0;
   padding: 18px 22px;
   border-radius: 14px;
 
-  /* light ivory card so text is highly readable on light orange bg */
-  background: linear-gradient(180deg, #ffffff 0%, #fff9f2 100%);
-  color: #111215; /* strong dark text for readability */
+  /* dark gray card for Netflix theme */
+  background: linear-gradient(180deg, #2a2a2a 0%, #1f1f1f 100%);
+  color: #e5e5e5; /* light text for readability */
 
   /* subtle border and soft shadow for depth */
-  border: 1px solid rgba(16,16,16,0.06);
-  box-shadow: 0 8px 26px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04) inset;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 8px 26px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.2) inset;
   line-height: 1.7;
 }
 
-/* === User bubble: bold Bingio orange pill with readable text === */
+/* === User bubble: Netflix red pill with white text === */
 .user-message {
   display: inline-block;
   margin: 10px 0;
   padding: 10px 18px;
   border-radius: 999px;
 
-  /* strong brand gradient (orange -> deeper orange) */
-  background: linear-gradient(180deg, #ff7a29 0%, #ff5f2e 100%);
+  /* Netflix red gradient */
+  background: linear-gradient(180deg, #e50914 0%, #b20710 100%);
 
-  /* use near-black text for best contrast on orange */
-  color: #080808;
+  /* white text for best contrast on red */
+  color: #ffffff;
   font-weight: 600;
   letter-spacing: 0.2px;
 
   /* remove heavy border; add subtle outer glow */
   border: 0;
-  box-shadow: 0 10px 30px rgba(255,95,46,0.18), 0 2px 6px rgba(0,0,0,0.08);
+  box-shadow: 0 10px 30px rgba(229,9,20,0.25), 0 2px 6px rgba(0,0,0,0.12);
 }
 
 /* Links inside messages use the accent and are more visible */
@@ -185,8 +185,8 @@ body::after {
 }
 .message-wall a:hover { text-decoration: underline; }
 
-/* Make placeholder text slightly darker so it reads on light bg */
-.input-pill ::placeholder { color: rgba(0,0,0,0.28); }
+/* Make placeholder text visible on dark backgrounds */
+.input-pill ::placeholder { color: rgba(255,255,255,0.4); }
 
 /* subtle incoming animation */
 .ai-message { animation: slideUp 200ms ease-out; }
@@ -229,13 +229,13 @@ body::after {
 }
 
 /* placeholder color lighter but visible */
-.input-pill ::placeholder { color: rgba(255,255,255,0.28); }
+.input-pill ::placeholder { color: rgba(255,255,255,0.4); }
 
-/* send button — orange circle with glow */
+/* send button — Netflix red circle with glow */
 .send-btn {
   width: 46px; height: 46px; border-radius: 999px;
   background: linear-gradient(180deg, var(--accent), var(--accent-2));
-  color: #050505; border: none;
+  color: #ffffff; border: none;
   display:grid; place-items:center;
   box-shadow: 0 12px 40px var(--accent-glow);
 }
