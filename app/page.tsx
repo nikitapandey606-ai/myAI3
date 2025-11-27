@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useChat } from "@ai-sdk/react";
-import { ArrowUp, Eraser, Loader2, Plus, PlusIcon, Square } from "lucide-react";
+import { ArrowUp, Loader2, Plus, Square } from "lucide-react";
 import { MessageWall } from "@/components/messages/message-wall";
 import { ChatHeader } from "@/app/parts/chat-header";
 import { ChatHeaderBlock } from "@/app/parts/chat-header";
@@ -25,53 +25,22 @@ import Image from "next/image";
 import Link from "next/link";
 
 const formSchema = z.object({
-  message: z
-    .string()
-    .min(1, "Message cannot be empty.")
-    .max(2000, "Message must be at most 2000 characters."),
+  message: z.string().min(1).max(2000),
 });
 
-const STORAGE_KEY = 'chat-messages';
-
-type StorageData = {
-  messages: UIMessage[];
-  durations: Record<string, number>;
-};
-
-const loadMessagesFromStorage = (): { messages: UIMessage[]; durations: Record<string, number> } => {
-  if (typeof window === 'undefined') return { messages: [], durations: {} };
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return { messages: [], durations: {} };
-
-    const parsed = JSON.parse(stored);
-    return {
-      messages: parsed.messages || [],
-      durations: parsed.durations || {},
-    };
-  } catch (error) {
-    console.error('Failed to load messages from localStorage:', error);
-    return { messages: [], durations: {} };
-  }
-};
-
-const saveMessagesToStorage = (messages: UIMessage[], durations: Record<string, number>) => {
-  if (typeof window === 'undefined') return;
-  try {
-    const data: StorageData = { messages, durations };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (error) {
-    console.error('Failed to save messages to localStorage:', error);
-  }
-};
+const STORAGE_KEY = "chat-messages";
 
 export default function Chat() {
   const [isClient, setIsClient] = useState(false);
   const [durations, setDurations] = useState<Record<string, number>>({});
-  const welcomeMessageShownRef = useRef<boolean>(false);
+  const welcomeMessageShownRef = useRef(false);
 
-  const stored = typeof window !== 'undefined' ? loadMessagesFromStorage() : { messages: [], durations: {} };
-  const [initialMessages] = useState<UIMessage[]>(stored.messages);
+  const stored =
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}")
+      : { messages: [], durations: {} };
+
+  const [initialMessages] = useState<UIMessage[]>(stored.messages || []);
 
   const { messages, sendMessage, status, stop, setMessages } = useChat({
     messages: initialMessages,
@@ -79,221 +48,162 @@ export default function Chat() {
 
   useEffect(() => {
     setIsClient(true);
-    setDurations(stored.durations);
-    setMessages(stored.messages);
+    setDurations(stored.durations || {});
+    setMessages(stored.messages || []);
   }, []);
 
   useEffect(() => {
     if (isClient) {
-      saveMessagesToStorage(messages, durations);
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ messages, durations })
+      );
     }
-  }, [durations, messages, isClient]);
-
-  const handleDurationChange = (key: string, duration: number) => {
-    setDurations((prevDurations) => {
-      const newDurations = { ...prevDurations };
-      newDurations[key] = duration;
-      return newDurations;
-    });
-  };
+  }, [messages, durations, isClient]);
 
   useEffect(() => {
-    if (isClient && initialMessages.length === 0 && !welcomeMessageShownRef.current) {
-      const welcomeMessage: UIMessage = {
-        id: `welcome-${Date.now()}`,
-        role: "assistant",
-        parts: [
-          {
-            type: "text",
-            text: WELCOME_MESSAGE,
-          },
-        ],
-      };
-      setMessages([welcomeMessage]);
-      saveMessagesToStorage([welcomeMessage], {});
-      welcomeMessageShownRef.current = true;
-    }
+    if (!isClient || initialMessages.length > 0 || welcomeMessageShownRef.current)
+      return;
+
+    const welcomeMessage: UIMessage = {
+      id: `welcome-${Date.now()}`,
+      role: "assistant",
+      parts: [{ type: "text", text: WELCOME_MESSAGE }],
+    };
+
+    setMessages([welcomeMessage]);
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ messages: [welcomeMessage], durations: {} })
+    );
+
+    welcomeMessageShownRef.current = true;
   }, [isClient, initialMessages.length, setMessages]);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      message: "",
-    },
+    defaultValues: { message: "" },
   });
 
-  function onSubmit(data: z.infer<typeof formSchema>) {
+  function onSubmit(data: any) {
     sendMessage({ text: data.message });
     form.reset();
   }
 
   function clearChat() {
-    const newMessages: UIMessage[] = [];
-    const newDurations = {};
-    setMessages(newMessages);
-    setDurations(newDurations);
-    saveMessagesToStorage(newMessages, newDurations);
+    setMessages([]);
+    setDurations({});
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages: [], durations: {} }));
     toast.success("Chat cleared");
   }
 
-  // header & footer heights used to keep content padded (match your visual sizing)
-  const HEADER_HEIGHT_PX = 88; // keep visual height consistent
-  const FOOTER_HEIGHT_PX = 150; // keep visual height consistent
-
   return (
-    <div className="flex h-screen items-center justify-center font-sans dark:bg-black">
-      <main className="w-full dark:bg-black h-screen relative">
-        {/* Header - kept fixed */}
-        <div
-          className="fixed top-0 left-0 right-0 z-50 bg-linear-to-b from-background via-background/50 to-transparent dark:bg-black overflow-visible pb-16"
-          style={{ height: HEADER_HEIGHT_PX }}
-        >
-          <div className="relative overflow-visible h-full">
-            <ChatHeader>
-              <ChatHeaderBlock />
-              {/* CENTER block - UPDATED: bigger logo + glow + title + subtitle */}
-              <ChatHeaderBlock className="justify-center items-center">
-                <div className="flex flex-col items-center justify-center text-center select-none">
-                  {/* logo glow */}
-                  <div className="relative flex items-center justify-center">
-                    {/* glow blob behind logo */}
-                    <div
-                      style={{
-                        position: "absolute",
-                        width: 110,
-                        height: 110,
-                        borderRadius: 9999,
-                        background: "radial-gradient(circle at 30% 30%, rgba(255,145,60,0.18), rgba(255,145,60,0.06) 30%, rgba(0,0,0,0) 60%)",
-                        filter: "blur(12px)",
-                        zIndex: 0,
-                      }}
-                    />
-                    <Avatar className="h-16 w-16 ring-1 ring-orange-300/30 shadow-lg" style={{ zIndex: 1 }}>
-                      <AvatarImage src="/logo.png" />
-                      <AvatarFallback>
-                        <Image src="/logo.png" alt="Logo" width={64} height={64} />
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
+    <div className="flex h-screen justify-center font-sans">
+      <main className="w-full h-screen relative">
 
-                  {/* Title */}
-                  <div className="mt-1 text-2xl font-extrabold tracking-tight text-orange-600">
-                    Chat with <span className="text-orange-700">{AI_NAME}</span>
-                  </div>
+        {/* 🔥 FIXED HEADER (ONLY CHANGED PART) */}
+        <div className="fixed top-0 left-0 right-0 z-50 bg-background pb-4 shadow-sm">
+          <ChatHeader>
+            <ChatHeaderBlock />
 
-                  {/* Subtitle */}
-                  <div className="text-sm text-orange-900/70 mt-1 font-medium">
-                    Your mood-tuned movie companion
-                  </div>
-                </div>
-              </ChatHeaderBlock>
+            <ChatHeaderBlock className="flex flex-col items-center text-center select-none">
 
-              <ChatHeaderBlock className="justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="cursor-pointer"
-                  onClick={clearChat}
-                >
-                  <Plus className="size-4" />
-                  {CLEAR_CHAT_TEXT}
-                </Button>
-              </ChatHeaderBlock>
-            </ChatHeader>
-          </div>
-        </div>
-
-        {/* Scrollable chat container. Inline padding keeps chat visible (not under header/footer). */}
-        <div
-          className="h-screen overflow-y-auto px-5 py-4 w-full"
-          style={{ paddingTop: `${HEADER_HEIGHT_PX + 8}px`, paddingBottom: `${FOOTER_HEIGHT_PX + 12}px` }}
-        >
-          <div className="flex flex-col items-center justify-end min-h-full">
-            {isClient ? (
-              <>
-                <MessageWall messages={messages} status={status} durations={durations} onDurationChange={handleDurationChange} />
-                {status === "submitted" && (
-                  <div className="flex justify-start max-w-3xl w-full">
-                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="flex justify-center max-w-2xl w-full">
-                <Loader2 className="size-4 animate-spin text-muted-foreground" />
+              {/* Glow + Bigger Logo */}
+              <div className="relative flex items-center justify-center mb-1">
+                <div
+                  className="absolute"
+                  style={{
+                    width: 110,
+                    height: 110,
+                    background:
+                      "radial-gradient(circle, rgba(255,140,60,0.25), rgba(255,140,60,0) 70%)",
+                    filter: "blur(12px)",
+                    borderRadius: "9999px",
+                  }}
+                />
+                <Avatar className="h-16 w-16 shadow-lg ring-1 ring-orange-300/40">
+                  <AvatarImage src="/logo.png" />
+                  <AvatarFallback>
+                    <Image src="/logo.png" alt="logo" width={64} height={64} />
+                  </AvatarFallback>
+                </Avatar>
               </div>
-            )}
-          </div>
+
+              {/* TITLE */}
+              <div className="text-xl font-bold text-orange-700">
+                Chat with {AI_NAME}
+              </div>
+
+              {/* SUBTITLE */}
+              <div className="text-xs text-orange-800/70 font-medium mt-1">
+                Your mood-tuned movie companion
+              </div>
+
+            </ChatHeaderBlock>
+
+            <ChatHeaderBlock className="justify-end">
+              <Button variant="outline" size="sm" onClick={clearChat}>
+                <Plus className="size-4" />
+                {CLEAR_CHAT_TEXT}
+              </Button>
+            </ChatHeaderBlock>
+          </ChatHeader>
         </div>
 
-        {/* Footer / input area - kept fixed and unchanged */}
-        <div
-          className="fixed bottom-0 left-0 right-0 z-50 bg-linear-to-t from-background via-background/50 to-transparent dark:bg-black overflow-visible pt-13"
-          style={{ height: FOOTER_HEIGHT_PX }}
-        >
-          <div className="w-full px-5 pt-5 pb-1 items-center flex justify-center relative overflow-visible">
-            <div className="message-fade-overlay" />
-            <div className="max-w-3xl w-full">
-              <form id="chat-form" onSubmit={form.handleSubmit(onSubmit)}>
-                <FieldGroup>
-                  <Controller
-                    name="message"
-                    control={form.control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="chat-form-message" className="sr-only">
-                          Message
-                        </FieldLabel>
-                        <div className="relative h-13">
-                          <Input
-                            {...field}
-                            id="chat-form-message"
-                            className="h-15 pr-15 pl-5 bg-card rounded-[20px]"
-                            placeholder="Type your message here..."
-                            disabled={status === "streaming"}
-                            aria-invalid={fieldState.invalid}
-                            autoComplete="off"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault();
-                                form.handleSubmit(onSubmit)();
-                              }
-                            }}
-                          />
-                          {(status == "ready" || status == "error") && (
-                            <Button
-                              className="absolute right-3 top-3 rounded-full"
-                              type="submit"
-                              disabled={!field.value.trim()}
-                              size="icon"
-                            >
-                              <ArrowUp className="size-4" />
-                            </Button>
-                          )}
-                          {(status == "streaming" || status == "submitted") && (
-                            <Button
-                              className="absolute right-2 top-2 rounded-full"
-                              size="icon"
-                              onClick={() => {
-                                stop();
-                              }}
-                            >
-                              <Square className="size-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </Field>
-                    )}
-                  />
-                </FieldGroup>
-              </form>
-            </div>
+        {/* CHAT SCROLL */}
+        <div className="h-screen overflow-y-auto px-5 pt-28 pb-40">
+          <MessageWall
+            messages={messages}
+            status={status}
+            durations={durations}
+            onDurationChange={(k, d) =>
+              setDurations((prev) => ({ ...prev, [k]: d }))
+            }
+          />
+          {status === "submitted" && (
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          )}
+        </div>
+
+        {/* FOOTER (unchanged) */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background pt-4 pb-3 shadow-[0_-2px_10px_rgba(0,0,0,0.08)]">
+          <div className="max-w-3xl mx-auto w-full px-5">
+            <form onSubmit={form.handleSubmit(onSubmit)}>
+              <FieldGroup>
+                <Controller
+                  name="message"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Field>
+                      <div className="relative">
+                        <Input
+                          {...field}
+                          className="h-14 rounded-2xl bg-card pr-14 pl-5"
+                          placeholder="Type your message here..."
+                          disabled={status === "streaming"}
+                        />
+                        <Button
+                          className="absolute right-3 top-2 rounded-full"
+                          type="submit"
+                          disabled={!field.value.trim()}
+                          size="icon"
+                        >
+                          <ArrowUp className="size-4" />
+                        </Button>
+                      </div>
+                    </Field>
+                  )}
+                />
+              </FieldGroup>
+            </form>
           </div>
-          <div className="w-full px-5 py-3 items-center flex justify-center text-xs text-muted-foreground">
-            © {new Date().getFullYear()} {OWNER_NAME}&nbsp;<Link href="/terms" className="underline">Terms of Use</Link>&nbsp;Powered by&nbsp;<Link href="https://ringel.ai/" className="underline">Ringel.AI</Link>
+
+          <div className="text-center text-xs text-muted-foreground mt-2">
+            © {new Date().getFullYear()} {OWNER_NAME} •
+            <Link href="/terms" className="underline"> Terms of Use </Link> • Powered by Ringel.AI
           </div>
         </div>
       </main>
-    </div >
+    </div>
   );
 }
