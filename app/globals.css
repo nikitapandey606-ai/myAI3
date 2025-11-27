@@ -1,92 +1,95 @@
 /* app/globals.css */
 
-/* Tailwind base */
+/* Tailwind directives (project already uses Tailwind) */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Theme tokens for "movie" vibe */
+/* Basic tokens */
 :root {
-  --movie-bg-1: #0b0b0c; /* deep near-black */
-  --movie-bg-2: #111214;
-  --movie-accent: #ea7f62; /* warm coral */
+  --movie-bg-dark: #0b0c0d;
+  --movie-accent: #ea7f62; /* coral */
   --movie-accent-2: #d96f52;
   --movie-muted: #6b7280;
   --movie-foreground: #0f1724;
   --card-bg: rgba(255,255,255,0.96);
 }
 
-/* body background (subtle cinematic gradient) */
+/* page background - subtle cinematic gradient */
 html[data-theme="movie"] body {
-  background: radial-gradient(1200px 600px at 10% 10%, rgba(234,127,98,0.06), transparent 10%),
-              linear-gradient(180deg, rgba(10,10,10,0.98) 0%, rgba(19,19,20,0.98) 100%);
+  background: linear-gradient(180deg, rgba(6,6,6,0.98) 0%, rgba(14,14,15,0.98) 100%);
   color: var(--movie-foreground);
+  min-height: 100vh;
 }
 
-/* global typographic tuning */
-body {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: "ss01" on;
+/* reset for images and avatar sizes to avoid large placeholders */
+img, svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
 }
 
-/* header & chat styling */
+/* avatar constraints: if Avatar component renders fallback, keep it small */
+.avatar, .avatar * {
+  max-width: 40px;
+  width: 40px;
+  height: 40px;
+  box-sizing: border-box;
+}
+
+/* header */
 .chat-header {
   height: 76px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 24px;
+  padding: 8px 16px;
+  background: transparent;
 }
 
-/* movie colors available as utility-ish classes */
-.bg-movie-accent { background-color: var(--movie-accent); }
-.text-movie-accent { color: var(--movie-accent); }
-.text-movie-muted { color: var(--movie-muted); }
-.bg-movie-muted { background-color: #9ca3af; }
+/* container constraints */
+.max-w-3xl { max-width: 980px; }
+.max-w-7xl { max-width: 1200px; }
 
-/* central card look */
+/* card */
 .bg-card {
-  background: rgba(255,255,255,0.95);
-  border-radius: 14px;
-  box-shadow: 0 8px 30px rgba(2,6,23,0.45);
+  background: rgba(255,255,255,0.98);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
 
-/* message bubble styles (assistants left, user right) */
-/* Message wall components will use these classes, but adding safe defaults:
-   If the project renders different markup, these will still help */
+/* assistant and user bubbles - safe defaults */
 .assistant-bubble {
-  background: rgba(239, 246, 255, 0.9);
+  background: rgba(244,247,250,0.98);
   color: #0f1724;
-  padding: 16px;
-  border-radius: 14px;
-  max-width: 85%;
-  box-shadow: 0 4px 18px rgba(2,6,23,0.06);
+  padding: 14px;
+  border-radius: 12px;
+  max-width: 86%;
+  box-shadow: 0 6px 18px rgba(20,20,20,0.06);
 }
 .user-bubble {
   background: linear-gradient(180deg, var(--movie-accent), var(--movie-accent-2));
   color: white;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: 12px;
   max-width: 60%;
-  box-shadow: 0 6px 22px rgba(233, 126, 96, 0.18);
+  box-shadow: 0 8px 20px rgba(233,126,96,0.16);
 }
 
-/* input and footer */
+/* input */
 input, textarea {
-  border-radius: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(15,23,36,0.05);
 }
 
-/* small responsive tuning */
-@media (min-width: 1024px) {
-  .max-w-3xl { max-width: 980px; }
-}
+/* muted text */
+.text-muted-foreground { color: var(--movie-muted); }
 
-/* subtle "thinking" animation for a loader icon (connects to Loader2) */
+/* small loader dot animation if used */
 @keyframes movie-dots {
-  0% { transform: translateY(0); opacity: 0.7; }
+  0% { transform: translateY(0); opacity: 0.6; }
   50% { transform: translateY(-4px); opacity: 1; }
-  100% { transform: translateY(0); opacity: 0.7; }
+  100% { transform: translateY(0); opacity: 0.6; }
 }
 .thinking-dot {
   display:inline-block;
@@ -95,11 +98,11 @@ input, textarea {
   background:var(--movie-accent);
   border-radius:999px;
   margin-right:6px;
-  animation: movie-dots 1s infinite ease-in-out;
+  animation: movie-dots 0.9s infinite ease-in-out;
 }
 
-/* small helper: muted text */
-.text-muted-foreground { color: var(--movie-muted); }
-
-/* keep footer links readable on both light/dark */
-a { color: var(--movie-accent); text-decoration: underline; }
+/* mobile tuning */
+@media (max-width: 640px) {
+  .avatar, .avatar * { width: 36px; height: 36px; }
+  .chat-header { padding: 10px; }
+}
