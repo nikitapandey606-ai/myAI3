@@ -4,10 +4,10 @@
 
 :root {
   /* BINGIO Theme: Dark Cinema */
-  --background: #0a0a0a; /* Deep Black */
-  --foreground: #ededed; /* Off-white text */
+  --background: #0a0a0a;
+  --foreground: #ededed;
   
-  --primary: #e50914; /* Cinematic Red */
+  --primary: #e50914;
   --primary-foreground: #ffffff;
   
   --muted: #1f1f1f;
@@ -24,13 +24,37 @@
 @layer base {
   body {
     @apply bg-background text-foreground antialiased;
-    /* Subtle background gradient for depth */
     background-image: radial-gradient(circle at 50% 0%, #2a1010 0%, #0a0a0a 60%);
     background-attachment: fixed;
   }
 }
 
 @layer utilities {
-  /* Glassmorphism effect for the chat window */
+  /* Glassmorphism effect */
   .glass-panel {
-    @apply bg-opacity-80 backdrop
+    @apply bg-opacity-80 backdrop-blur-md border border-white/10 shadow-2xl;
+  }
+  
+  /* Hide scrollbar but allow scrolling */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+} /* <--- THIS CLOSING BRACE WAS MISSING */
+
+/* Custom Scrollbar for chat area */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #e509
