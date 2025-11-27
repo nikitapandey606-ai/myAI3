@@ -158,10 +158,10 @@ body::after {
   margin: 10px 0;
   padding: 10px 16px;
   border-radius: 999px;
-  background: rgba(222,54,24,0.02);
+  background: rgb(222, 54, 24);
   color: var(--text);
-  border: 1px solid rgba(222,54,24,0.03);
-  box-shadow: 0 8px 28px rgba(0,0,0,0.6);
+  border: 1px solid rgb(222, 54, 24);
+  box-shadow: 0 8px 28px rgb(222, 54, 24);
 }
 
 /* accent for titles/links inside messages */
