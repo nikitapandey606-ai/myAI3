@@ -13,7 +13,7 @@
 
 /* ---------- Theme variables ---------- */
 :root{
-  --bg: #000000;                 /* pure black */
+  --bg: #FFD580;                 /* pure black */
   --surface: #0f0f10;            /* slightly lighter cards */
   --text: #f7f3ef;               /* warm off-white */
   --muted: #bfb7b0;              /* muted secondary */
@@ -158,9 +158,9 @@ body::after {
   margin: 10px 0;
   padding: 10px 16px;
   border-radius: 999px;
-  background: rgba(255,255,255,0.02);
+  background: rgba(222,54,24,0.02);
   color: var(--text);
-  border: 1px solid rgba(255,255,255,0.03);
+  border: 1px solid rgba(222,54,24,0.03);
   box-shadow: 0 8px 28px rgba(0,0,0,0.6);
 }
 
