@@ -258,3 +258,31 @@ body::after {
   .input-pill { padding: 12px; max-width: calc(100% - 40px); }
   .ai-message, .user-message { max-width: calc(100% - 56px); }
 }
+
+/* ---------- BINGIO USER BUBBLE (final) ---------- */
+.user-message {
+  display: inline-block;
+  max-width: 75%;
+  padding: 12px 20px;             /* keeps similar spacing as your px-4 py-3 */
+  margin: 10px 0;
+  border-radius: 20px;            /* match rounded-[20px] */
+  background: linear-gradient(180deg, #ff8933 0%, #ff5e1e 100%);
+  border: 1px solid #ff5e1e;
+  color: #0b0b0b;                 /* dark text for accessibility on orange */
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  box-shadow:
+    0 8px 26px rgba(255, 94, 30, 0.32),
+    0 2px 8px rgba(0, 0, 0, 0.16);
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+
+/* ensure the Response children inherit color */
+.user-message .ai-elements-response,
+.user-message .user-message-text,
+.user-message span,
+.user-message p {
+  color: inherit;
+}
