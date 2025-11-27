@@ -137,119 +137,136 @@ export default function Chat() {
   }
 
   return (
-    <div className="flex h-screen items-center justify-center font-sans dark:bg-black">
-      <main className="w-full dark:bg-black h-screen relative">
-        <div className="fixed top-0 left-0 right-0 z-50 bg-linear-to-b from-background via-background/50 to-transparent dark:bg-black overflow-visible pb-16">
-          <div className="relative overflow-visible">
-            <ChatHeader>
-              <ChatHeaderBlock />
-              <ChatHeaderBlock className="justify-center items-center">
-                <Avatar
-                  className="size-8 ring-1 ring-primary"
-                >
-                  <AvatarImage src="/logo.png" />
-                  <AvatarFallback>
-                    <Image src="/logo.png" alt="Logo" width={36} height={36} />
-                  </AvatarFallback>
-                </Avatar>
-                <p className="tracking-tight">Chat with {AI_NAME}</p>
-              </ChatHeaderBlock>
-              <ChatHeaderBlock className="justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="cursor-pointer"
-                  onClick={clearChat}
-                >
-                  <Plus className="size-4" />
-                  {CLEAR_CHAT_TEXT}
-                </Button>
-              </ChatHeaderBlock>
-            </ChatHeader>
-          </div>
-        </div>
-        <div className="h-screen overflow-y-auto px-5 py-4 w-full pt-[88px] pb-[150px]">
-          <div className="flex flex-col items-center justify-end min-h-full">
-            {isClient ? (
-              <>
-                <MessageWall messages={messages} status={status} durations={durations} onDurationChange={handleDurationChange} />
-                {status === "submitted" && (
-                  <div className="flex justify-start max-w-3xl w-full">
-                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="flex justify-center max-w-2xl w-full">
-                <Loader2 className="size-4 animate-spin text-muted-foreground" />
+    <div className="min-h-screen bg-[#FFF8F3] text-[#1F2937] antialiased">
+      {/* Header area - polished and centered */}
+      <div className="fixed inset-x-0 top-0 z-50 bg-white/80 backdrop-blur-sm border-b border-gray-100">
+        <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
+          {/* Left area is intentionally empty to center the header in the page */}
+          <div className="w-16" />
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full overflow-hidden shadow-md flex items-center justify-center bg-gradient-to-br from-[#FF7A3D] to-[#FFB067] ring-1 ring-white">
+                {/* use your logo in public folder at /logo.png */}
+                <Image src="/logo.png" alt="Bingio" width={44} height={44} className="object-cover" />
               </div>
-            )}
-          </div>
-        </div>
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-linear-to-t from-background via-background/50 to-transparent dark:bg-black overflow-visible pt-13">
-          <div className="w-full px-5 pt-5 pb-1 items-center flex justify-center relative overflow-visible">
-            <div className="message-fade-overlay" />
-            <div className="max-w-3xl w-full">
-              <form id="chat-form" onSubmit={form.handleSubmit(onSubmit)}>
-                <FieldGroup>
-                  <Controller
-                    name="message"
-                    control={form.control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="chat-form-message" className="sr-only">
-                          Message
-                        </FieldLabel>
-                        <div className="relative h-13">
-                          <Input
-                            {...field}
-                            id="chat-form-message"
-                            className="h-15 pr-15 pl-5 bg-card rounded-[20px]"
-                            placeholder="Type your message here..."
-                            disabled={status === "streaming"}
-                            aria-invalid={fieldState.invalid}
-                            autoComplete="off"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault();
-                                form.handleSubmit(onSubmit)();
-                              }
-                            }}
-                          />
-                          {(status == "ready" || status == "error") && (
-                            <Button
-                              className="absolute right-3 top-3 rounded-full"
-                              type="submit"
-                              disabled={!field.value.trim()}
-                              size="icon"
-                            >
-                              <ArrowUp className="size-4" />
-                            </Button>
-                          )}
-                          {(status == "streaming" || status == "submitted") && (
-                            <Button
-                              className="absolute right-2 top-2 rounded-full"
-                              size="icon"
-                              onClick={() => {
-                                stop();
-                              }}
-                            >
-                              <Square className="size-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </Field>
-                    )}
-                  />
-                </FieldGroup>
-              </form>
+              <div className="text-center">
+                <div className="text-sm font-semibold">Chat with <span className="text-[#FF7A3D]">{AI_NAME}</span></div>
+                <div className="text-xs text-gray-500">Your mood-tuned movie companion</div>
+              </div>
             </div>
           </div>
-          <div className="w-full px-5 py-3 items-center flex justify-center text-xs text-muted-foreground">
-            © {new Date().getFullYear()} {OWNER_NAME}&nbsp;<Link href="/terms" className="underline">Terms of Use</Link>&nbsp;Powered by&nbsp;<Link href="https://ringel.ai/" className="underline">Ringel.AI</Link>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={clearChat} className="border-gray-200">
+              <Plus className="w-4 h-4 mr-2" /> {CLEAR_CHAT_TEXT}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <main className="mx-auto max-w-6xl px-6 pt-36 pb-36">
+        <div className="flex flex-col items-center">
+          <div className="w-full">
+            {/* Message wall and loader (keeps same component) */}
+            <div className="rounded-2xl bg-white shadow-soft p-6">
+              {isClient ? (
+                <>
+                  <MessageWall messages={messages} status={status} durations={durations} onDurationChange={handleDurationChange} />
+                  {status === "submitted" && (
+                    <div className="flex justify-start mt-4">
+                      <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex justify-center py-16">
+                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </main>
-    </div >
+
+      {/* Composer area (sticky bottom) */}
+      <div className="fixed inset-x-0 bottom-0 z-50">
+        <div className="mx-auto max-w-6xl px-6 pb-6">
+          <form id="chat-form" onSubmit={form.handleSubmit(onSubmit)} className="relative">
+            <FieldGroup>
+              <Controller
+                name="message"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <div className="relative">
+                      <FieldLabel htmlFor="chat-form-message" className="sr-only">Message</FieldLabel>
+                      <Input
+                        {...field}
+                        id="chat-form-message"
+                        className="h-14 pr-20 pl-4 bg-white rounded-full shadow-md border border-gray-100 placeholder:text-gray-400"
+                        placeholder="Type your message here..."
+                        disabled={status === "streaming"}
+                        aria-invalid={fieldState.invalid}
+                        autoComplete="off"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            form.handleSubmit(onSubmit)();
+                          }
+                        }}
+                      />
+
+                      {/* Buttons */}
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+                        {(status === "ready" || status === "error") && (
+                          <Button
+                            className="rounded-full p-2"
+                            type="submit"
+                            disabled={!field.value.trim()}
+                            size="icon"
+                          >
+                            <ArrowUp className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {(status === "streaming" || status === "submitted") && (
+                          <Button
+                            className="rounded-full p-2"
+                            size="icon"
+                            onClick={() => {
+                              stop();
+                            }}
+                          >
+                            <Square className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </Field>
+                )}
+              />
+            </FieldGroup>
+          </form>
+
+          {/* footer line */}
+          <div className="mt-3 flex items-center justify-center text-xs text-gray-500">
+            © {new Date().getFullYear()} {OWNER_NAME}&nbsp;
+            <Link href="/terms" className="underline ml-1 mr-1">Terms of Use</Link>
+            Powered by&nbsp;
+            <Link href="https://ringel.ai/" className="underline">Ringel.AI</Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Inline styles to polish spacing and shadows */}
+      <style jsx>{`
+        .shadow-soft {
+          box-shadow: 0 10px 30px rgba(17,24,39,0.06);
+        }
+        /* slightly larger composer input on small screens */
+        @media (max-width: 640px) {
+          main { padding-top: 20rem; }
+        }
+      `}</style>
+    </div>
   );
 }
