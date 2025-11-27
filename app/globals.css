@@ -1,245 +1,260 @@
-"use client";
+/* app/globals.css
+   Netflix × Bingio cinematic theme
+   - Dark Netflix background
+   - Netflix red accent
+   - Warm off-white primary text
+   - No JS changes; purely visual CSS (safe)
+*/
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
-import { toast } from "sonner";
-import * as z from "zod";
+/* Keep imports if your build uses them */
+@import "tailwindcss";
+@import "tw-animate-css";
+@custom-variant dark (&:is(.dark *));
 
-import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { useChat } from "@ai-sdk/react";
-import { ArrowUp, Loader2, Plus, Square } from "lucide-react";
-import { MessageWall } from "@/components/messages/message-wall";
-import { ChatHeader } from "@/app/parts/chat-header";
-import { ChatHeaderBlock } from "@/app/parts/chat-header";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { UIMessage } from "ai";
-import { useEffect, useState, useRef } from "react";
-import {
-  AI_NAME,
-  CLEAR_CHAT_TEXT,
-  OWNER_NAME,
-  WELCOME_MESSAGE,
-} from "@/config";
-import Image from "next/image";
-import Link from "next/link";
+/* ---------- Theme variables ---------- */
+:root{
+  --bg: #141414;                 /* Netflix dark gray */
+  --surface: #1f1f1f;            /* slightly lighter cards */
+  --text: #e5e5e5;               /* Netflix off-white */
+  --muted: #8c8c8c;              /* muted secondary */
+  --accent: #e50914;             /* Netflix red (primary) */
+  --accent-2: #b20710;           /* deeper red for gradients */
+  --accent-glow: rgba(229,9,20,0.15);
+  --border: rgba(255,255,255,0.08);
+  --input: rgba(255,255,255,0.06);
+  --shadow-lg: 0 20px 60px rgba(0,0,0,0.8);
+  --shadow-sm: 0 8px 28px rgba(0,0,0,0.6);
+  --radius: 0.9rem;
+  --header-height: 72px;
+}
 
-/* ------------------ Form schema ------------------ */
-const formSchema = z.object({
-  message: z
-    .string()
-    .min(1, "Message cannot be empty.")
-    .max(2000, "Message must be at most 2000 characters."),
-});
+/* If .dark class used elsewhere keep parity */
+.dark { /* same palette intentionally */ }
 
-/* ------------------ LocalStorage helpers ------------------ */
-const STORAGE_KEY = "chat-messages";
+/* ---------- Base reset & typography ---------- */
+* { box-sizing: border-box; scroll-behavior: smooth; }
+html, body, #__next { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.65;
+}
 
-type StorageData = {
-  messages: UIMessage[];
-  durations: Record<string, number>;
-};
+/* subtle film grain texture for cinematic feel */
+body::after {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.006) 1px, transparent 1px);
+  background-size: 3px 3px;
+  opacity: 0.01;
+  z-index: 99999;
+  mix-blend-mode: overlay;
+}
 
-const loadMessagesFromStorage = () => {
-  if (typeof window === "undefined") return { messages: [], durations: {} };
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { messages: [], durations: {} };
-    return JSON.parse(raw);
-  } catch {
-    return { messages: [], durations: {} };
-  }
-};
+/* scrollbars tuned for dark theme */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.16));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
 
-const saveMessagesToStorage = (messages: UIMessage[], durations: any) => {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, durations }));
-};
+/* small inline pill link */
+.single-char-link {
+  display:inline-block;
+  padding:0.12rem 0.5rem;
+  border-radius:999px;
+  border:1px solid var(--input);
+  background:var(--surface);
+  color:var(--text);
+  text-decoration:none;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.single-char-link:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 
-/* ------------------ Chat Component ------------------ */
-export default function Chat() {
-  const [isClient, setIsClient] = useState(false);
-  const [durations, setDurations] = useState<Record<string, number>>({});
-  const welcomeShown = useRef(false);
+/* ---------- Header (visual only) ---------- */
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(6,6,6,0.98), rgba(12,12,12,0.96));
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+}
 
-  const stored = loadMessagesFromStorage();
-  const [initialMessages] = useState(stored.messages ?? []);
+/* inner header container */
+.header-inner {
+  width: 100%;
+  max-width: 1180px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+}
 
-  const { messages, sendMessage, status, stop, setMessages } = useChat({
-    messages: initialMessages,
-  });
+/* logo + title area */
+.header-logo { display:flex; align-items:center; gap:12px; }
+.logo-wrap {
+  width:46px; height:46px; border-radius:12px; display:grid; place-items:center;
+  overflow:hidden;
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  box-shadow: 0 8px 32px var(--accent-glow);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.header-title { display:flex; flex-direction:column; line-height:1; }
+.header-title .title { font-weight:700; font-size:15px; color:var(--text); }
+.header-title .subtitle { font-size:12px; color:var(--muted); margin-top:2px; }
 
-  useEffect(() => {
-    setIsClient(true);
-    setDurations(stored.durations ?? {});
-    setMessages(stored.messages ?? []);
-  }, []);
+/* header actions */
+.header-controls { display:flex; align-items:center; gap:10px; }
+.header-controls .btn {
+  padding:8px 12px; border-radius:8px;
+  border:1px solid rgba(255,255,255,0.06); background:transparent; color:var(--text);
+}
+.header-controls .btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 
-  useEffect(() => {
-    if (isClient) saveMessagesToStorage(messages, durations);
-  }, [messages, durations, isClient]);
+/* spacer under fixed header so content doesn't hide */
+.header-spacer { height: var(--header-height); }
 
-  const handleDuration = (key: string, duration: number) =>
-    setDurations((d) => ({ ...d, [key]: duration }));
+/* ---------- Message area / center column ---------- */
+.app-root, main, .chat-root { background: var(--bg); color: var(--text); }
+.message-container { max-width: 920px; margin: 28px auto; padding: 8px 20px 220px; } /* big bottom padding for composer */
 
-  /* Show welcome message on fresh chat */
-  useEffect(() => {
-    if (!isClient || initialMessages.length > 0 || welcomeShown.current) return;
-    const welcome: UIMessage = {
-      id: `welcome-${Date.now()}`,
-      role: "assistant",
-      parts: [{ type: "text", text: WELCOME_MESSAGE }],
-    };
-    welcomeShown.current = true;
-    setMessages([welcome]);
-    saveMessagesToStorage([welcome], {});
-  }, [isClient, initialMessages.length, setMessages]);
+/* message wall typographic baseline */
+.message-wall { font-size: 1rem; line-height:1.7; color:var(--text); }
 
-  /* Form */
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { message: "" },
-  });
+/* tool label */
+.message-tool { color:var(--muted); font-size:13px; margin:10px 0; display:inline-flex; gap:8px; align-items:center; }
 
-  const onSubmit = (data: any) => {
-    sendMessage({ text: data.message });
-    form.reset();
-  };
+/* === Assistant bubble: dark card with light text === */
+.ai-message {
+  max-width: 72ch;
+  margin: 20px 0;
+  padding: 18px 22px;
+  border-radius: 14px;
 
-  const clearChat = () => {
-    setMessages([]);
-    setDurations({});
-    saveMessagesToStorage([], {});
-    toast.success("Chat cleared");
-  };
+  /* dark gray card for Netflix theme */
+  background: linear-gradient(180deg, #2a2a2a 0%, #1f1f1f 100%);
+  color: #e5e5e5; /* light text for readability */
 
-  return (
-    <div className="page-root min-h-screen flex flex-col">
-      {/* HEADER */}
-      <header className="app-header backdrop-blur-xl">
-        <div className="header-inner">
+  /* subtle border and soft shadow for depth */
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 8px 26px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.2) inset;
+  line-height: 1.7;
+}
 
-          <div className="w-10" />
-          <div className="header-logo">
-            <Avatar className="h-10 w-10 shadow-md">
-              <AvatarImage src="/logo.png" alt="Logo" />
-              <AvatarFallback>B</AvatarFallback>
-            </Avatar>
+/* === User bubble: Orange pill with dark text === */
+.user-message {
+  display: inline-block;
+  margin: 10px 0;
+  padding: 10px 18px;
+  border-radius: 999px;
 
-            <div className="header-title">
-              <span className="title">
-                Chat with {AI_NAME}
-              </span>
-              <span className="subtitle">
-                Your mood-tuned movie companion
-              </span>
-            </div>
-          </div>
+  /* Orange gradient */
+  background: linear-gradient(180deg, #ff7a29 0%, #ff5f2e 100%);
 
-          <Button variant="outline" size="sm" onClick={clearChat} className="header-controls">
-            <Plus className="w-4 h-4 mr-1" /> {CLEAR_CHAT_TEXT}
-          </Button>
-        </div>
-      </header>
+  /* dark text for best contrast on orange */
+  color: #080808;
+  font-weight: 600;
+  letter-spacing: 0.2px;
 
-      {/* CONTENT */}
-      <main className="flex-1 flex justify-center px-4 pb-32">
-        <div className="message-container">
-          <div
-            className="chat-scroll overflow-y-auto pr-1"
-            style={{ maxHeight: "calc(100vh - 230px)" }}
-          >
-            {!isClient ? (
-              <div className="flex justify-center py-10">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <MessageWall
-                messages={messages}
-                status={status}
-                durations={durations}
-                onDurationChange={handleDuration}
-              />
-            )}
-          </div>
+  /* remove heavy border; add subtle outer glow */
+  border: 0;
+  box-shadow: 0 10px 30px rgba(255,95,46,0.25), 0 2px 6px rgba(0,0,0,0.12);
+}
 
-          {/* Small loader */}
-          {status === "submitted" && (
-            <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" /> Thinking…
-            </div>
-          )}
-        </div>
-      </main>
+/* Links inside messages use the accent and are more visible */
+.message-wall a, .message-wall .highlight {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.message-wall a:hover { text-decoration: underline; }
 
-      {/* COMPOSER */}
-      <div className="composer backdrop-blur-xl">
-        <div className="input-pill">
-          <form onSubmit={form.handleSubmit(onSubmit)} className="w-full">
-            <FieldGroup>
-              <Controller
-                name="message"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel className="sr-only">Message</FieldLabel>
+/* Make placeholder text visible on dark backgrounds */
+.input-pill ::placeholder { color: rgba(255,255,255,0.4); }
 
-                    <div className="relative">
-                      <Input
-                        {...field}
-                        placeholder="Type your message here…"
-                        className="h-14 rounded-full px-5 pr-14 shadow-md text-sm"
-                        disabled={status === "streaming"}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            form.handleSubmit(onSubmit)();
-                          }
-                        }}
-                      />
+/* subtle incoming animation */
+.ai-message { animation: slideUp 200ms ease-out; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(8px) } to { opacity:1; transform: translateY(0) } }
 
-                      {/* Send Button */}
-                      {(status === "ready" || status === "error") && (
-                        <Button
-                          type="submit"
-                          size="icon"
-                          className="send-btn absolute top-1/2 right-2 -translate-y-1/2"
-                          disabled={!field.value.trim()}
-                        >
-                          <ArrowUp className="w-4 h-4" />
-                        </Button>
-                      )}
+/* ---------- Composer / input (fixed) ---------- */
+.composer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  padding: 20px;
+  background: linear-gradient(180deg, rgba(6,6,6,0.98), rgba(12,12,12,0.98));
+  border-top: 1px solid var(--border);
+  display:flex;
+  justify-content:center;
+  flex-direction: column;
+  align-items: center;
+}
 
-                      {/* Stop button */}
-                      {(status === "streaming" || status === "submitted") && (
-                        <Button
-                          size="icon"
-                          className="send-btn absolute top-1/2 right-2 -translate-y-1/2"
-                          onClick={() => stop()}
-                        >
-                          <Square className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </Field>
-                )}
-              />
-            </FieldGroup>
-          </form>
-        </div>
+.input-pill {
+  width: 100%;
+  max-width: 920px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  border-radius: 999px;
+  padding: 14px 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.03));
+  border: 1px solid var(--input);
+  box-shadow: 0 16px 50px rgba(0,0,0,0.6);
+}
 
-        <div className="app-footer">
-          © {new Date().getFullYear()} {OWNER_NAME} &nbsp;
-          <Link href="/terms" className="underline">
-            Terms of Use
-          </Link>{" "}
-          · Powered by{" "}
-          <Link href="https://ringel.ai/" className="underline">
-            Ringel.AI
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
+.input-pill input, .input-pill textarea {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  width: 100%;
+  font-size: 15px;
+}
+
+/* placeholder color lighter but visible */
+.input-pill ::placeholder { color: rgba(255,255,255,0.4); }
+
+/* send button — Netflix red circle with glow */
+.send-btn {
+  width: 46px; height: 46px; border-radius: 999px;
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  color: #ffffff; border: none;
+  display:grid; place-items:center;
+  box-shadow: 0 12px 40px var(--accent-glow);
+}
+
+/* ---------- Footer ---------- */
+.app-footer { text-align:center; padding: 18px 0; color:var(--muted); font-size:12px; background: transparent; max-width: 920px; width: 100%; }
+
+/* ---------- Force dark theme overrides ---------- */
+.page-root {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 880px){
+  .message-container { padding: 14px 14px 260px; max-width: 100%; }
+  .logo-wrap { width:40px; height:40px; border-radius:10px; }
+  .input-pill { padding: 12px; max-width: calc(100% - 40px); }
+  .ai-message, .user-message { max-width: calc(100% - 56px); }
 }
