@@ -1,6 +1,5 @@
 // components/messages/assistant-message.tsx
 import React from "react";
-import ReactMarkdown from "react-markdown";
 import TextRecommendation from "../ui/TextRecommendation";
 
 type AssistantMessageProps = {
@@ -54,9 +53,9 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
               </div>
             </div>
           ) : (
-            <div className="prose prose-invert max-w-none">
-              {text.trim() ? <ReactMarkdown>{text}</ReactMarkdown> : null}
-            </div>
+           <div className="text-gray-200 whitespace-pre-wrap">
+  {text}
+</div>
           )}
         </div>
 
