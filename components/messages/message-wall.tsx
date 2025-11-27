@@ -1,7 +1,8 @@
 import { UIMessage } from "ai";
 import { useEffect, useRef } from "react";
 import { UserMessage } from "./user-message";
-import AssistantMessage from "./assistant-message";
+import { AssistantMessage } from "./assistant-message";
+
 
 export function MessageWall({ messages, status, durations, onDurationChange }: { messages: UIMessage[]; status?: string; durations?: Record<string, number>; onDurationChange?: (key: string, duration: number) => void }) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
