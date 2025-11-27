@@ -1,218 +1,275 @@
-/* ---------------------------------------------------------- */
-/* Tailwind + Animate imports (unchanged)                     */
-/* ---------------------------------------------------------- */
+/* globals.css — Cinematic dark theme (Netflix × MUBI) */
+/* Drop-in safe: uses CSS variables, no unknown Tailwind @apply tokens */
+
+/* -------------------------------------------------- */
+/* Imports (keep)                                     */
+/* -------------------------------------------------- */
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *)); 
+/* Ensure custom variant support if used elsewhere */
+@custom-variant dark (&:is(.dark *));
 
-
-/* ---------------------------------------------------------- */
-/* THEME TOKENS (Your original tokens untouched)              */
-/* ---------------------------------------------------------- */
+/* -------------------------------------------------- */
+/* Theme tokens (kept, but we'll override dark values)*/
+/* -------------------------------------------------- */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-
-/* ---------------------------------------------------------- */
-/* ROOT LIGHT MODE (Unchanged except subtle background tweak) */
-/* ---------------------------------------------------------- */
+/* -------------------------------------------------- */
+/* Light mode defaults (unchanged subtle warm white)  */
+/* -------------------------------------------------- */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.985 0.01 0);                /* softer white */
-  --foreground: oklch(0.145 0 0);
+  --radius: 0.75rem;
 
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --background: #fbf7f5;             /* soft warm white */
+  --foreground: #111214;             /* near black */
 
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --card: #ffffff;
+  --card-foreground: #111214;
 
-  --primary: oklch(0.18 0.05 30);
-  --primary-foreground: oklch(0.985 0 0);
+  --muted: #efe9e7;
+  --muted-foreground: #6b6b6b;
 
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
+  --accent: #ea580c;                 /* warm orange accent */
+  --accent-foreground: #fff;
 
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.5 0 0);
+  --border: #e7dfdb;
+  --input: #eee6e3;
+  --ring: #e59a6b;
 
-  --accent: oklch(0.96 0.01 20);
-  --accent-foreground: oklch(0.205 0 0);
-
-  --destructive: oklch(0.577 0.245 27.325);
-
-  --border: oklch(0.92 0 0);
-  --input: oklch(0.92 0 0);
-  --ring: oklch(0.70 0 0);
-
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --shadow-soft: 0 6px 20px rgba(17,24,39,0.06);
 }
 
+/* -------------------------------------------------- */
+/* CINEMATIC DARK THEME (Netflix × MUBI)              */
+/* - Deep charcoal background                         */
+/* - Warm amber/orange accents                        */
+/* - Muted warm greys for body copy                   */
+/* - Subtle film grain overlay                        */
+/* -------------------------------------------------- */
+.dark,
+@media (prefers-color-scheme: dark) {
+  --background: #060606;              /* near absolute black for cinematic depth */
+  --foreground: #e8e6e3;              /* soft warm light text */
+  --card: #0f0f10;                    /* card slightly lighter than background */
+  --card-foreground: #f3f2f1;
 
-/* ---------------------------------------------------------- */
-/* DARK MODE (unchanged except smoother background)           */
-/* ---------------------------------------------------------- */
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
+  --muted: #121212;                   /* subtle panel color */
+  --muted-foreground: #bdb8b5;        /* softer grey for secondary text */
 
-  --card: oklch(0.22 0 0);
-  --card-foreground: oklch(0.985 0 0);
+  --accent: #ff6a3d;                  /* warm MUBI/Netflix-like orange */
+  --accent-foreground: #0b0b0b;
 
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  --border: rgba(255,255,255,0.04);
+  --input: rgba(255,255,255,0.03);
+  --ring: rgba(255,120,60,0.18);
 
-  --primary: oklch(0.86 0.01 20);
-  --primary-foreground: oklch(0.205 0 0);
-
-  --secondary: oklch(0.23 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-
-  --muted: oklch(0.23 0 0);
-  --muted-foreground: oklch(0.70 0 0);
-
-  --accent: oklch(0.23 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --shadow-soft: 0 12px 40px rgba(0,0,0,0.6);
 }
 
-
-/* ---------------------------------------------------------- */
-/* BASE ELEMENT FIXES: smooth scrolling, nice layout          */
-/* ---------------------------------------------------------- */
+/* -------------------------------------------------- */
+/* Base layer — safe utilities and helpful defaults   */
+/* (No use of unknown Tailwind classnames here)       */
+/* -------------------------------------------------- */
 @layer base {
+  /* Reset + safe border + smooth scroll */
   * {
-    @apply border-border outline-ring/50;
+    box-sizing: border-box;
     scroll-behavior: smooth;
   }
 
-  body {
-    @apply bg-background text-foreground antialiased;
-    -webkit-font-smoothing: antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  }
-
-  /* Prevent page jump when keyboard opens (mobile) */
-  html, body {
+  html, body, #__next {
     height: 100%;
   }
 
-  /* Clean scrollbar (safe for all browsers) */
-  ::-webkit-scrollbar {
-    width: 8px;
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--background);
+    color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, var(--font-sans);
+    line-height: 1.6;
   }
+
+  /* subtle film-grain overlay for dark mode to get that curated look (non-intrusive) */
+  body::after {
+    content: "";
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 3px 3px;
+    opacity: 0;
+    transition: opacity 220ms ease;
+    z-index: 100000; /* above background but below app UI */
+  }
+
+  .dark body::after,
+  @media (prefers-color-scheme: dark) {
+    body::after {
+      opacity: 0.03;
+      mix-blend-mode: overlay;
+      filter: grayscale(20%) contrast(70%);
+    }
+  }
+
+  /* scrollbars — subtle, visible on dark/light */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: var(--muted);
-    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.12));
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--muted-foreground);
+    filter: brightness(0.9);
   }
 
-  /* Style for tiny inline "links" shown by the AI */
+  /* small pill-like inline links */
   .single-char-link {
-    @apply bg-card text-card-foreground px-2 py-1 rounded-full 
-           hover:underline hover:scale-105 transition-all duration-100
-           border border-input no-underline;
+    display: inline-block;
+    padding: 0.18rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--input);
+    background: var(--card);
+    color: var(--card-foreground);
+    text-decoration: none;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+  }
+  .single-char-link:hover { transform: translateY(-1px) scale(1.02); box-shadow: var(--shadow-soft); }
+
+  /* generic card */
+  .card {
+    background: var(--card);
+    color: var(--card-foreground);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-soft);
+    border: 1px solid var(--border);
   }
 }
 
+/* -------------------------------------------------- */
+/* Chat-specific polish (bubbles, layout tweaks)      */
+/* -------------------------------------------------- */
 
-/* ---------------------------------------------------------- */
-/* CHAT UI POLISH                                             */
-/* ---------------------------------------------------------- */
+/* Container helpers (applied in page layout) */
+.chat-scroll { scrollbar-gutter: stable; }
 
-/* Center chat on big screens properly */
-.chat-scroll {
-  scrollbar-gutter: stable;
-}
+/* Message wall typography refinements */
+.message-wall { font-size: 1rem; color: var(--foreground); line-height: 1.6; }
 
-/* Make message area feel tighter and cinematic */
-.ai-message p {
-  line-height: 1.55;
-  font-size: 0.97rem;
-}
-
-/* Slight fade-in for AI responses */
+/* Assistant bubble (left) — cinematic card style */
 .ai-message {
-  animation: fadeIn 0.2s ease-out;
+  display: block;
+  max-width: 72ch;
+  margin: 18px 0;
+  padding: 18px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+  border: 1px solid rgba(255,255,255,0.04);
+  color: var(--card-foreground);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.25);
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(2px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* User bubble (right) — slightly translucent pill */
+.user-message {
+  display: inline-block;
+  margin: 10px 0;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  color: var(--foreground);
+  border: 1px solid rgba(255,255,255,0.04);
+  box-shadow: 0 3px 12px rgba(0,0,0,0.2);
 }
 
-/* iMessage-like bubble shadows */
-.bubble {
-  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+/* For light mode, tweak the look to be softer */
+:root .ai-message {
+  background: linear-gradient(180deg, #fff, #fff);
+  color: #111;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 30px rgba(17,24,39,0.06);
+}
+:root .user-message {
+  background: #f3f2f1;
+  color: #111;
+  border: 1px solid #e6ded8;
+}
+
+/* Dark mode bubble colors */
+.dark .ai-message,
+@media (prefers-color-scheme: dark) and (prefers-color-scheme: dark) {
+  .ai-message {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+    border: 1px solid rgba(255,255,255,0.04);
+    color: var(--card-foreground);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  }
+
+  .user-message {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    color: var(--foreground);
+    border: 1px solid rgba(255,255,255,0.04);
+    box-shadow: 0 8px 28px rgba(0,0,0,0.55);
+  }
+}
+
+/* Headline / header text — cinematic serif feel (if available) */
+.chat-header-title {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Composer / input bar styling */
+.composer {
+  background: linear-gradient(180deg, rgba(0,0,0,0.0), rgba(0,0,0,0.02));
+  padding: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* Input pill */
+.composer .input-pill {
+  width: 100%;
+  border-radius: 999px;
+  padding: 14px 18px;
+  background: var(--card);
+  border: 1px solid var(--input);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+  color: var(--card-foreground);
+}
+
+/* Accent buttons (send, new chat) */
+.btn-accent {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  border-radius: 10px;
+  padding: 8px 12px;
+  border: none;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.btn-accent:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+
+/* Subtle footer style */
+.app-footer {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  padding: 18px 0;
+  text-align: center;
+}
+
+/* Small responsive niceties */
+@media (max-width: 640px) {
+  .ai-message, .user-message { max-width: calc(100% - 48px); }
+  .composer { padding: 12px; }
 }
