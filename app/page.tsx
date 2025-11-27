@@ -3,7 +3,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import { toast } from "sonner";
 import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -16,13 +15,10 @@ import { Input } from "@/components/ui/input";
 import { useChat } from "@ai-sdk/react";
 import { ArrowUp, Square, Loader2, Plus } from "lucide-react";
 import { MessageWall } from "@/components/messages/message-wall";
-import { ChatHeader } from "@/app/parts/chat-header";
-import { ChatHeaderBlock } from "@/app/parts/chat-header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UIMessage } from "ai";
 import { useEffect, useState, useRef } from "react";
 import { AI_NAME, CLEAR_CHAT_TEXT, OWNER_NAME, WELCOME_MESSAGE } from "@/config";
-import Image from "next/image";
 import Link from "next/link";
 
 const formSchema = z.object({
@@ -32,7 +28,7 @@ const formSchema = z.object({
     .max(2000, "Message must be at most 2000 characters."),
 });
 
-const STORAGE_KEY = 'chat-messages';
+const STORAGE_KEY = "chat-messages";
 
 type StorageData = {
   messages: UIMessage[];
@@ -40,7 +36,7 @@ type StorageData = {
 };
 
 const loadMessagesFromStorage = (): { messages: UIMessage[]; durations: Record<string, number> } => {
-  if (typeof window === 'undefined') return { messages: [], durations: {} };
+  if (typeof window === "undefined") return { messages: [], durations: {} };
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return { messages: [], durations: {} };
@@ -51,18 +47,18 @@ const loadMessagesFromStorage = (): { messages: UIMessage[]; durations: Record<s
       durations: parsed.durations || {},
     };
   } catch (error) {
-    console.error('Failed to load messages from localStorage:', error);
+    console.error("Failed to load messages from localStorage:", error);
     return { messages: [], durations: {} };
   }
 };
 
 const saveMessagesToStorage = (messages: UIMessage[], durations: Record<string, number>) => {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   try {
     const data: StorageData = { messages, durations };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch (error) {
-    console.error('Failed to save messages to localStorage:', error);
+    console.error("Failed to save messages to localStorage:", error);
   }
 };
 
@@ -71,7 +67,7 @@ export default function Chat() {
   const [durations, setDurations] = useState<Record<string, number>>({});
   const welcomeMessageShownRef = useRef<boolean>(false);
 
-  const stored = typeof window !== 'undefined' ? loadMessagesFromStorage() : { messages: [], durations: {} };
+  const stored = typeof window !== "undefined" ? loadMessagesFromStorage() : { messages: [], durations: {} };
   const [initialMessages] = useState<UIMessage[]>(stored.messages);
 
   const { messages, sendMessage, status, stop, setMessages } = useChat({
@@ -135,61 +131,55 @@ export default function Chat() {
     setMessages(newMessages);
     setDurations(newDurations);
     saveMessagesToStorage(newMessages, newDurations);
-    toast.success("Chat cleared");
   }
 
   return (
     <div className="min-h-screen font-sans bg-movie-bg text-movie-foreground">
       {/* header */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-transparent">
-        <ChatHeader>
-          <ChatHeaderBlock className="pl-6">
-            <Avatar className="size-9 ring-0 bg-movie-accent/10">
-              <AvatarImage src="/logo.png" />
+      <header className="fixed top-0 left-0 right-0 z-50 bg-transparent">
+        <div className="chat-header max-w-7xl mx-auto flex items-center justify-between px-6">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10">
+              {/* AvatarImage will be constrained to 40px */}
+              <AvatarImage src="/logo.png" alt="Bingio logo" className="h-10 w-10 object-cover rounded-full" />
               <AvatarFallback>🎬</AvatarFallback>
             </Avatar>
-            <div className="ml-4">
+
+            <div>
               <div className="text-lg font-semibold tracking-tight">Chat with {AI_NAME}</div>
               <div className="text-xs text-muted-foreground">Emotion-aware movie & series recommendations</div>
             </div>
-          </ChatHeaderBlock>
+          </div>
 
-          <ChatHeaderBlock className="justify-end pr-6">
-            <Button
-              variant="outline"
-              size="sm"
-              className="cursor-pointer bg-transparent"
-              onClick={clearChat}
-            >
-              <Plus className="size-4 mr-2" />
+          <div>
+            <Button variant="outline" size="sm" onClick={clearChat}>
+              <Plus className="mr-2 h-4 w-4" />
               {CLEAR_CHAT_TEXT}
             </Button>
-          </ChatHeaderBlock>
-        </ChatHeader>
-      </div>
+          </div>
+        </div>
+      </header>
 
-      {/* main chat center column */}
-      <main className="pt-28 pb-40 min-h-screen">
+      {/* main content */}
+      <main className="pt-28 pb-44">
         <div className="max-w-3xl mx-auto px-6">
-          <div className="rounded-xl bg-transparent p-1">
-            <div className="bg-card/60 backdrop-blur-sm rounded-xl p-6">
-              <div className="min-h-[60vh]">
-                {isClient ? (
-                  <>
-                    <MessageWall messages={messages} status={status} durations={durations} onDurationChange={handleDurationChange} />
-                    {status === "submitted" && (
-                      <div className="flex items-center mt-4">
-                        <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                        <div className="ml-3 text-sm text-muted-foreground">Thinking...</div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex justify-center py-12">
-                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-              </div>
+          <div className="bg-card/70 rounded-xl p-6">
+            <div className="min-h-[56vh]">
+              {isClient ? (
+                <>
+                  <MessageWall messages={messages} status={status} durations={durations} onDurationChange={handleDurationChange} />
+                  {status === "submitted" && (
+                    <div className="flex items-center mt-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      <div className="ml-3 text-sm text-muted-foreground">Thinking...</div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -205,14 +195,12 @@ export default function Chat() {
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid} className="w-full">
-                    <FieldLabel htmlFor="chat-form-message" className="sr-only">
-                      Message
-                    </FieldLabel>
+                    <FieldLabel htmlFor="chat-form-message" className="sr-only">Message</FieldLabel>
                     <div className="relative">
                       <Input
                         {...field}
                         id="chat-form-message"
-                        className="h-14 pr-16 pl-6 rounded-2xl shadow-lg"
+                        className="h-14 pr-16 pl-6 rounded-full shadow-lg"
                         placeholder="Describe your mood, who you're watching with, or ask anything..."
                         disabled={status === "streaming"}
                         aria-invalid={fieldState.invalid}
@@ -224,17 +212,17 @@ export default function Chat() {
                           }
                         }}
                       />
-                      {(status == "ready" || status == "error") && (
+                      {(status === "ready" || status === "error") && (
                         <Button
                           className="absolute right-2 top-2 rounded-full bg-movie-accent text-white"
                           type="submit"
                           disabled={!field.value.trim()}
                           size="icon"
                         >
-                          <ArrowUp className="size-4" />
+                          <ArrowUp className="h-4 w-4" />
                         </Button>
                       )}
-                      {(status == "streaming" || status == "submitted") && (
+                      {(status === "streaming" || status === "submitted") && (
                         <Button
                           className="absolute right-2 top-2 rounded-full bg-movie-muted text-white"
                           size="icon"
@@ -242,7 +230,7 @@ export default function Chat() {
                             stop();
                           }}
                         >
-                          <Square className="size-4" />
+                          <Square className="h-4 w-4" />
                         </Button>
                       )}
                     </div>
@@ -251,6 +239,7 @@ export default function Chat() {
               />
             </FieldGroup>
           </form>
+
           <div className="mt-3 text-center text-xs text-muted-foreground">
             © {new Date().getFullYear()} {OWNER_NAME} &nbsp;
             <Link href="/terms" className="underline">Terms of Use</Link> &nbsp; Powered by Ringel.AI
