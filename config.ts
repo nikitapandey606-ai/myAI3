@@ -30,4 +30,29 @@ export const DATE_AND_TIME = getDateAndTime();
    Branding
 -------------------------------------------- */
 export const AI_NAME = "Bingio";
-export const OWNER_NAME_
+export const OWNER_NAME = "Granth & Nikita";
+
+export const WELCOME_MESSAGE =
+  "Hey, I'm Bingio — your movie buddy, mood matcher, and vibe curator. Let's find something to watch!";
+
+export const CLEAR_CHAT_TEXT = "New";
+
+/* -------------------------------------------
+   Moderation Messages (Brand Voice)
+   ASCII-only, single-line, safe strings
+-------------------------------------------- */
+
+/* Sexual Content (adult explicit) */
+export const MODERATION_DENIAL_MESSAGE_SEXUAL =
+  "I keep things clean here, so I can’t help with explicit sexual content. But I can suggest romantic or emotional movies instead.";
+
+/* Sexual content involving minors */
+export const MODERATION_DENIAL_MESSAGE_SEXUAL_MINORS =
+  "I can’t discuss anything involving minors in a sexual context. If you want, I can suggest respectful coming-of-age films.";
+
+/* Harassment (general) */
+export const MODERATION_DENIAL_MESSAGE_HARASSMENT =
+  "I’m here for good vibes only, so I can’t engage with harassment. Want a feel-good movie instead?";
+
+/* Harassment with threats */
+export const
