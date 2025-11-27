@@ -1,18 +1,15 @@
-/* globals.css — Cinematic dark theme (Netflix × MUBI) */
-/* Drop-in safe: uses CSS variables, no unknown Tailwind @apply tokens */
+/* app/globals.css
+   Cinematic dark theme — deep black + warm orange accents
+   Drop-in safe: only CSS variables and safe rules (no unknown tailwind @apply classes)
+*/
 
-/* -------------------------------------------------- */
-/* Imports (keep)                                     */
-/* -------------------------------------------------- */
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Ensure custom variant support if used elsewhere */
+/* keep custom variant support if used elsewhere */
 @custom-variant dark (&:is(.dark *));
 
-/* -------------------------------------------------- */
-/* Theme tokens (kept, but we'll override dark values)*/
-/* -------------------------------------------------- */
+/* Theme tokens (kept, but we override dark palette below) */
 @theme inline {
   --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
@@ -22,72 +19,45 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* -------------------------------------------------- */
-/* Light mode defaults (unchanged subtle warm white)  */
-/* -------------------------------------------------- */
+/* Light defaults (safe fallback) */
 :root {
   --radius: 0.75rem;
-
-  --background: #fbf7f5;             /* soft warm white */
-  --foreground: #111214;             /* near black */
-
-  --card: #ffffff;
-  --card-foreground: #111214;
-
-  --muted: #efe9e7;
-  --muted-foreground: #6b6b6b;
-
-  --accent: #ea580c;                 /* warm orange accent */
-  --accent-foreground: #fff;
-
-  --border: #e7dfdb;
-  --input: #eee6e3;
-  --ring: #e59a6b;
-
-  --shadow-soft: 0 6px 20px rgba(17,24,39,0.06);
-}
-
-/* -------------------------------------------------- */
-/* CINEMATIC DARK THEME (Netflix × MUBI)              */
-/* - Deep charcoal background                         */
-/* - Warm amber/orange accents                        */
-/* - Muted warm greys for body copy                   */
-/* - Subtle film grain overlay                        */
-/* -------------------------------------------------- */
-.dark,
-@media (prefers-color-scheme: dark) {
-  --background: #060606;              /* near absolute black for cinematic depth */
-  --foreground: #e8e6e3;              /* soft warm light text */
-  --card: #0f0f10;                    /* card slightly lighter than background */
-  --card-foreground: #f3f2f1;
-
-  --muted: #121212;                   /* subtle panel color */
-  --muted-foreground: #bdb8b5;        /* softer grey for secondary text */
-
-  --accent: #ff6a3d;                  /* warm MUBI/Netflix-like orange */
+  --background: #0b0b0b;            /* default to dark to avoid flash */
+  --foreground: #eae6e2;
+  --card: #101010;
+  --card-foreground: #f6f4f2;
+  --muted: #151515;
+  --muted-foreground: #a8a29e;
+  --accent: #ff6a3d;                /* warm orange accent */
   --accent-foreground: #0b0b0b;
-
   --border: rgba(255,255,255,0.04);
   --input: rgba(255,255,255,0.03);
   --ring: rgba(255,120,60,0.18);
-
-  --shadow-soft: 0 12px 40px rgba(0,0,0,0.6);
+  --shadow-soft: 0 10px 30px rgba(0,0,0,0.6);
 }
 
-/* -------------------------------------------------- */
-/* Base layer — safe utilities and helpful defaults   */
-/* (No use of unknown Tailwind classnames here)       */
-/* -------------------------------------------------- */
-@layer base {
-  /* Reset + safe border + smooth scroll */
-  * {
-    box-sizing: border-box;
-    scroll-behavior: smooth;
-  }
+/* Explicit dark theme palette — this will be active for .dark class and prefers-color-scheme */
+.dark,
+@media (prefers-color-scheme: dark) {
+  --background: #050505;            /* deep cinematic black */
+  --foreground: #efece9;            /* warm off-white text */
+  --card: #0f0f10;                  /* slightly lighter than background */
+  --card-foreground: #f7f6f5;
+  --muted: #111111;
+  --muted-foreground: #bdb6b0;
+  --accent: #ff5f2e;                /* Netflix-like warm orange */
+  --accent-foreground: #070706;
+  --border: rgba(255,255,255,0.04);
+  --input: rgba(255,255,255,0.03);
+  --ring: rgba(255,120,60,0.18);
+  --shadow-soft: 0 14px 50px rgba(0,0,0,0.7);
+}
 
-  html, body, #__next {
-    height: 100%;
-  }
+/* ---------------- base rules (safe) ---------------- */
+@layer base {
+  * { box-sizing: border-box; scroll-behavior: smooth; }
+
+  html, body, #__next { height: 100%; }
 
   body {
     margin: 0;
@@ -100,42 +70,35 @@
     line-height: 1.6;
   }
 
-  /* subtle film-grain overlay for dark mode to get that curated look (non-intrusive) */
+  /* subtle film grain overlay in dark */
   body::after {
     content: "";
     pointer-events: none;
     position: fixed;
     inset: 0;
-    background-image: radial-gradient(rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-image: radial-gradient(rgba(255,255,255,0.01) 1px, transparent 1px);
     background-size: 3px 3px;
     opacity: 0;
     transition: opacity 220ms ease;
-    z-index: 100000; /* above background but below app UI */
+    z-index: 100000;
+    mix-blend-mode: overlay;
   }
-
   .dark body::after,
   @media (prefers-color-scheme: dark) {
-    body::after {
-      opacity: 0.03;
-      mix-blend-mode: overlay;
-      filter: grayscale(20%) contrast(70%);
-    }
+    body::after { opacity: 0.02; filter: grayscale(10%) contrast(80%); }
   }
 
-  /* scrollbars — subtle, visible on dark/light */
-  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  /* scrollbars */
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.12));
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.12));
     border-radius: 999px;
     border: 2px solid transparent;
     background-clip: content-box;
   }
-  ::-webkit-scrollbar-thumb:hover {
-    filter: brightness(0.9);
-  }
 
-  /* small pill-like inline links */
+  /* small inline link pill */
   .single-char-link {
     display: inline-block;
     padding: 0.18rem 0.5rem;
@@ -147,28 +110,23 @@
     transition: transform 120ms ease, box-shadow 120ms ease;
   }
   .single-char-link:hover { transform: translateY(-1px) scale(1.02); box-shadow: var(--shadow-soft); }
-
-  /* generic card */
-  .card {
-    background: var(--card);
-    color: var(--card-foreground);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-soft);
-    border: 1px solid var(--border);
-  }
 }
 
-/* -------------------------------------------------- */
-/* Chat-specific polish (bubbles, layout tweaks)      */
-/* -------------------------------------------------- */
+/* ---------------- chat UI polish ---------------- */
 
-/* Container helpers (applied in page layout) */
+/* Ensure main background is pure black cinematic feel */
+.app-root, .chat-root, main {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Chat container (centered column) */
 .chat-scroll { scrollbar-gutter: stable; }
 
-/* Message wall typography refinements */
-.message-wall { font-size: 1rem; color: var(--foreground); line-height: 1.6; }
+/* Message wall basic adjustments */
+.message-wall { font-size: 1rem; color: var(--foreground); line-height: 1.7; }
 
-/* Assistant bubble (left) — cinematic card style */
+/* Assistant (left) bubble cinematic card */
 .ai-message {
   display: block;
   max-width: 72ch;
@@ -178,77 +136,37 @@
   background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
   border: 1px solid rgba(255,255,255,0.04);
   color: var(--card-foreground);
-  box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.65);
 }
 
-/* User bubble (right) — slightly translucent pill */
+/* User bubble (right) */
 .user-message {
   display: inline-block;
   margin: 10px 0;
   padding: 10px 16px;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
   color: var(--foreground);
   border: 1px solid rgba(255,255,255,0.04);
-  box-shadow: 0 3px 12px rgba(0,0,0,0.2);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.55);
 }
 
-/* For light mode, tweak the look to be softer */
-:root .ai-message {
-  background: linear-gradient(180deg, #fff, #fff);
-  color: #111;
-  border: 1px solid var(--border);
-  box-shadow: 0 8px 30px rgba(17,24,39,0.06);
-}
-:root .user-message {
-  background: #f3f2f1;
-  color: #111;
-  border: 1px solid #e6ded8;
-}
+/* Top header title */
+.chat-header-title { font-weight: 700; letter-spacing: -0.02em; color: var(--foreground); }
 
-/* Dark mode bubble colors */
-.dark .ai-message,
-@media (prefers-color-scheme: dark) and (prefers-color-scheme: dark) {
-  .ai-message {
-    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
-    border: 1px solid rgba(255,255,255,0.04);
-    color: var(--card-foreground);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
-  }
-
-  .user-message {
-    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-    color: var(--foreground);
-    border: 1px solid rgba(255,255,255,0.04);
-    box-shadow: 0 8px 28px rgba(0,0,0,0.55);
-  }
-}
-
-/* Headline / header text — cinematic serif feel (if available) */
-.chat-header-title {
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-/* Composer / input bar styling */
-.composer {
-  background: linear-gradient(180deg, rgba(0,0,0,0.0), rgba(0,0,0,0.02));
-  padding: 16px;
-  border-top: 1px solid var(--border);
-}
-
-/* Input pill */
+/* Composer / input bar */
+.composer { background: linear-gradient(180deg, transparent, rgba(0,0,0,0.02)); padding: 16px; border-top: 1px solid var(--border); }
 .composer .input-pill {
   width: 100%;
   border-radius: 999px;
   padding: 14px 18px;
   background: var(--card);
   border: 1px solid var(--input);
-  box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
   color: var(--card-foreground);
 }
 
-/* Accent buttons (send, new chat) */
+/* Accent buttons like send or new chat */
 .btn-accent {
   background: var(--accent);
   color: var(--accent-foreground);
@@ -258,17 +176,12 @@
   cursor: pointer;
   transition: transform .12s ease, box-shadow .12s ease;
 }
-.btn-accent:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+.btn-accent:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(0,0,0,0.6); }
 
-/* Subtle footer style */
-.app-footer {
-  color: var(--muted-foreground);
-  font-size: 12px;
-  padding: 18px 0;
-  text-align: center;
-}
+/* Footer */
+.app-footer { color: var(--muted-foreground); font-size: 12px; padding: 18px 0; text-align: center; }
 
-/* Small responsive niceties */
+/* Responsive tweaks */
 @media (max-width: 640px) {
   .ai-message, .user-message { max-width: calc(100% - 48px); }
   .composer { padding: 12px; }
