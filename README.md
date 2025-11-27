@@ -33,7 +33,7 @@ It doesn’t just suggest *what* to watch — it understands *why* you need it r
 
 ### 👩‍💻 Team
 - **Granth Thakkar**
-- **Nikita [Your Last Name]**
+- **Nikita Pandey**
 
 ---
 
