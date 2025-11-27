@@ -1,96 +1,95 @@
-import { NextResponse } from "next/server";
-import { openai } from "@ai-sdk/openai";
-import { Pinecone } from "@pinecone-database/pinecone";
-import {
-  PINECONE_INDEX_NAME,
-  PINECONE_TOP_K,
-} from "../../../config";
+// server/api/groundedAnswer.ts (or app/api/chat/route.ts handler)
+import { OpenAI } from "openai"; // or your openai sdk import
+import { PineconeClient } from "@pinecone-database/pinecone";
+import { PINECONE_TOP_K, PINECONE_INDEX_NAME, MODEL } from "../config"; // adjust path
 
-const client = new Pinecone({
-  apiKey: process.env.PINECONE_API_KEY!,
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const index = client.Index(PINECONE_INDEX_NAME);
+const pinecone = new PineconeClient();
+await pinecone.init({ apiKey: process.env.PINECONE_API_KEY, environment: process.env.PINECONE_ENV });
 
-// 1) Embed user query
-async function embedQuery(input: string) {
-  const result = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input,
+const SIMILARITY_THRESHOLD = 0.75; // tune this
+
+async function embedQuery(query: string) {
+  const resp = await openai.embeddings.create({
+    model: "text-embedding-3-small", // choose model you use for embeddings
+    input: query,
   });
-
-  return result.data[0].embedding;
+  return resp.data[0].embedding;
 }
 
-export async function POST(req: Request) {
+async function fetchFromPinecone(vector: number[], topK = PINECONE_TOP_K) {
+  const index = pinecone.Index(PINECONE_INDEX_NAME);
+  const queryResp = await index.query({
+    vector,
+    topK,
+    includeMetadata: true,
+    includeValues: false,
+  });
+  return queryResp.matches || [];
+}
+
+function buildGroundedPrompt(userQuery: string, matches: any[]) {
+  // We'll include short snippets plus citation id
+  const sourcesText = matches
+    .map((m: any, i: number) => {
+      const meta = m.metadata || {};
+      // make a safe short snippet (truncate)
+      const snippet = (meta.text || meta.content || "").slice(0, 800).replace(/\n+/g, " ");
+      const id = meta.id || meta.source || `doc-${i + 1}`;
+      return `SOURCE ${i + 1}: [id=${id}]\n${snippet}\n`;
+    })
+    .join("\n---\n");
+
+  // system instruction: very strict
+  const system = `You are BINGIO. Answer the user's question using ONLY the information from the provided SOURCES.
+Do NOT invent facts, do NOT use outside knowledge beyond the sources.
+If the answer is not contained in the sources, reply exactly: "I don't know."`;
+
+  const userPrompt = `User question: ${userQuery}\n\nUse the sources below to answer. Cite sources inline like [SOURCE 1] when referring to them.`;
+
+  return `${system}\n\n${sourcesText}\n\n${userPrompt}`;
+}
+
+export default async function handler(req, res) {
   try {
-    const { messages } = await req.json();
+    const { query } = req.body; // user query text
 
-    const userMessage = messages[messages.length - 1].content;
+    // 1) embed query
+    const qvec = await embedQuery(query);
 
-    // 2) embed the query
-    const queryEmbedding = await embedQuery(userMessage);
+    // 2) fetch from pinecone
+    const matches = await fetchFromPinecone(qvec);
 
-    // 3) query Pinecone
-    const search = await index.query({
-      vector: queryEmbedding,
-      topK: PINECONE_TOP_K,
-      includeMetadata: true,
-    });
+    // 3) optional: convert raw pinecone score to similarity and filter
+    // Pinecone returns 'score' (depends on index metric - often cosine). We'll use it directly.
+    const goodMatches = matches.filter((m: any) => (m.score ?? 0) >= SIMILARITY_THRESHOLD).slice(0, PINECONE_TOP_K);
 
-    const matches = search.matches ?? [];
-
-    // 4) If nothing is relevant enough → do NOT let GPT hallucinate
-    if (matches.length === 0 || matches[0].score < 0.70) {
-      return NextResponse.json({
-        role: "assistant",
-        content: "I don't know. The information is not available in my database.",
-      });
+    if (!goodMatches.length) {
+      // No good match: be honest and refuse to hallucinate
+      return res.status(200).json({ answer: "I don't know.", reasons: "No relevant documents found." });
     }
 
-    // 5) Build grounded context from Pinecone
-    const context = matches
-      .map(
-        (m, i) =>
-          `SOURCE ${i + 1} (score=${m.score}): ${m.metadata?.text ?? ""}`
-      )
-      .join("\n\n");
+    // 4) build prompt (only include the good matches)
+    const groundedPrompt = buildGroundedPrompt(query, goodMatches);
 
-    // 6) STRICT ANTI-HALLUCINATION SYSTEM PROMPT
-    const systemPrompt = `
-You must answer ONLY using the information in the SOURCES provided below.
-Do NOT use outside knowledge.
-If the answer is not in the sources, reply EXACTLY with "I don't know."
-Be concise.
-
-======== SOURCES ========
-${context}
-=========================
-`;
-
-    // 7) Call GPT with grounded context
+    // 5) call LLM with deterministic params
     const completion = await openai.chat.completions.create({
-      model: "gpt-4.1",
+      model: "gpt-4.1", // or whichever model you prefer
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
+        { role: "system", content: groundedPrompt },
+        // If you want the model to be brief:
+        { role: "user", content: "Answer concisely. 2-3 sentences max." }
       ],
       temperature: 0,
+      max_tokens: 400,
     });
 
-    const answer =
-      completion.choices?.[0]?.message?.content ??
-      "I don't know.";
+    const answer = completion.choices?.[0]?.message?.content?.trim() ?? "I don't know.";
 
-    return NextResponse.json({
-      role: "assistant",
-      content: answer,
-    });
+    return res.status(200).json({ answer, sources: goodMatches.map((m: any, i: number) => ({ source: m.metadata?.id || `SOURCE ${i+1}`, score: m.score })) });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    console.error("grounded error", err);
+    return res.status(500).json({ error: String(err) });
   }
 }
