@@ -15,12 +15,17 @@ import { ChatHeader } from "@/app/parts/chat-header";
 import { ChatHeaderBlock } from "@/app/parts/chat-header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UIMessage } from "ai";
-import { useEffect, useRef, useState } from "react";
-import { AI_NAME, CLEAR_CHAT_TEXT, OWNER_NAME, WELCOME_MESSAGE } from "@/config";
+import { useEffect, useState, useRef } from "react";
+import {
+  AI_NAME,
+  CLEAR_CHAT_TEXT,
+  OWNER_NAME,
+  WELCOME_MESSAGE,
+} from "@/config";
 import Image from "next/image";
 import Link from "next/link";
 
-/* ------------------ form schema + storage helpers (unchanged) ------------------ */
+/* ------------------ Form schema ------------------ */
 const formSchema = z.object({
   message: z
     .string()
@@ -28,6 +33,7 @@ const formSchema = z.object({
     .max(2000, "Message must be at most 2000 characters."),
 });
 
+/* ------------------ LocalStorage helpers ------------------ */
 const STORAGE_KEY = "chat-messages";
 
 type StorageData = {
@@ -35,210 +41,156 @@ type StorageData = {
   durations: Record<string, number>;
 };
 
-const loadMessagesFromStorage = (): { messages: UIMessage[]; durations: Record<string, number> } => {
+const loadMessagesFromStorage = () => {
   if (typeof window === "undefined") return { messages: [], durations: {} };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { messages: [], durations: {} };
-    const parsed = JSON.parse(raw);
-    return {
-      messages: parsed.messages || [],
-      durations: parsed.durations || {},
-    };
-  } catch (e) {
-    console.error("Failed to load messages from localStorage:", e);
+    return JSON.parse(raw);
+  } catch {
     return { messages: [], durations: {} };
   }
 };
 
-const saveMessagesToStorage = (messages: UIMessage[], durations: Record<string, number>) => {
+const saveMessagesToStorage = (messages: UIMessage[], durations: any) => {
   if (typeof window === "undefined") return;
-  try {
-    const data: StorageData = { messages, durations };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.error("Failed to save messages to localStorage:", e);
-  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, durations }));
 };
 
-/* ------------------ Chat page component ------------------ */
+/* ------------------ Chat Component ------------------ */
 export default function Chat() {
   const [isClient, setIsClient] = useState(false);
   const [durations, setDurations] = useState<Record<string, number>>({});
-  const welcomeShownRef = useRef(false);
+  const welcomeShown = useRef(false);
 
-  const stored = typeof window !== "undefined" ? loadMessagesFromStorage() : { messages: [], durations: {} };
-  const [initialMessages] = useState<UIMessage[]>(stored.messages ?? []);
+  const stored = loadMessagesFromStorage();
+  const [initialMessages] = useState(stored.messages ?? []);
 
   const { messages, sendMessage, status, stop, setMessages } = useChat({
     messages: initialMessages,
   });
 
-  // Reference to the scroll container that holds the messages
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-
   useEffect(() => {
     setIsClient(true);
     setDurations(stored.durations ?? {});
     setMessages(stored.messages ?? []);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (isClient) {
-      saveMessagesToStorage(messages, durations);
-    }
-  }, [isClient, messages, durations]);
+    if (isClient) saveMessagesToStorage(messages, durations);
+  }, [messages, durations, isClient]);
 
-  // Show welcome message once if empty
+  const handleDuration = (key: string, duration: number) =>
+    setDurations((d) => ({ ...d, [key]: duration }));
+
+  /* Show welcome message on fresh chat */
   useEffect(() => {
-    if (isClient && initialMessages.length === 0 && !welcomeShownRef.current) {
-      const welcomeMessage: UIMessage = {
-        id: `welcome-${Date.now()}`,
-        role: "assistant",
-        parts: [{ type: "text", text: WELCOME_MESSAGE }],
-      };
-      setMessages([welcomeMessage]);
-      saveMessagesToStorage([welcomeMessage], {});
-      welcomeShownRef.current = true;
-    }
+    if (!isClient || initialMessages.length > 0 || welcomeShown.current) return;
+    const welcome: UIMessage = {
+      id: `welcome-${Date.now()}`,
+      role: "assistant",
+      parts: [{ type: "text", text: WELCOME_MESSAGE }],
+    };
+    welcomeShown.current = true;
+    setMessages([welcome]);
+    saveMessagesToStorage([welcome], {});
   }, [isClient, initialMessages.length, setMessages]);
 
-  // Auto-scroll behavior:
-  // - Scroll to bottom on mount
-  // - Scroll to bottom when the last message is from the assistant (new assistant reply)
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    // No messages -> nothing to do
-    if (!messages || messages.length === 0) return;
-
-    const last = messages[messages.length - 1];
-
-    // Only auto-scroll when the assistant sent the last message.
-    // This prevents the view jumping while the user types or when the user message is appended.
-    if (last.role === "assistant") {
-      // small timeout to allow DOM to render
-      const t = setTimeout(() => {
-        container.scrollTo({
-          top: container.scrollHeight,
-          behavior: "smooth",
-        });
-      }, 50);
-
-      return () => clearTimeout(t);
-    }
-  }, [messages]);
-
-  const handleDurationChange = (key: string, duration: number) => {
-    setDurations((prev) => ({ ...prev, [key]: duration }));
-  };
-
-  // form
+  /* Form */
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { message: "" },
   });
 
-  function onSubmit(data: z.infer<typeof formSchema>) {
-    // send message and clear input
+  const onSubmit = (data: any) => {
     sendMessage({ text: data.message });
     form.reset();
-    // do NOT auto-scroll here — we intentionally avoid it so the UI doesn't jump while typing
-  }
+  };
 
-  function clearChat() {
+  const clearChat = () => {
     setMessages([]);
     setDurations({});
     saveMessagesToStorage([], {});
     toast.success("Chat cleared");
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] antialiased">
-      {/* Sticky header */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b" style={{ borderColor: "var(--border)" }}>
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="w-12" />
+    <div className="page-root min-h-screen bg-background text-foreground flex flex-col">
+      {/* HEADER */}
+      <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-border">
+        <div className="mx-auto max-w-4xl px-4 h-16 flex items-center justify-between">
 
+          <div className="w-10" />
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-lg overflow-hidden shadow" style={{ background: "linear-gradient(180deg,var(--accent),var(--primary))" }}>
-              <Image src="/logo.png" alt="Bingio" width={44} height={44} className="object-cover" />
-            </div>
+            <Avatar className="h-10 w-10 shadow-md">
+              <AvatarImage src="/logo.png" alt="Logo" />
+              <AvatarFallback>B</AvatarFallback>
+            </Avatar>
+
             <div className="flex flex-col leading-tight">
-              <span className="font-semibold text-sm">Chat with {AI_NAME}</span>
-              <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Your mood-tuned movie companion</span>
+              <span className="font-semibold text-sm">
+                Chat with {AI_NAME}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Your mood-tuned movie companion
+              </span>
             </div>
           </div>
 
-          <div>
-            <Button variant="outline" size="sm" onClick={clearChat}>
-              <Plus className="w-4 h-4 mr-1" /> {CLEAR_CHAT_TEXT}
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" onClick={clearChat}>
+            <Plus className="w-4 h-4 mr-1" /> {CLEAR_CHAT_TEXT}
+          </Button>
         </div>
       </header>
 
-      {/* Scrollable center column */}
-      <main className="flex-1">
-        <div className="flex justify-center px-4 py-6">
-          <div className="w-full max-w-3xl">
-            {/* The scroll container. All messages render inside it.
-                We set a maxHeight so composer area is always visible.
-            */}
-            <div
-              ref={scrollContainerRef}
-              className="overflow-y-auto"
-              style={{
-                maxHeight: "calc(100vh - 260px)", // header + composer + margins
-                paddingRight: "8px",
-                scrollBehavior: "smooth",
-              }}
-              aria-live="polite"
-            >
-              {isClient ? (
-                <div className="mx-auto w-full">
-                  <MessageWall messages={messages} status={status} durations={durations} onDurationChange={handleDurationChange} />
-                </div>
-              ) : (
-                <div className="flex justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--muted-foreground)" }} />
-                </div>
-              )}
-            </div>
-
-            {/* small status/loader below message area */}
-            {status === "submitted" && (
-              <div className="mt-4 flex items-center gap-2 text-sm" style={{ color: "var(--muted-foreground)" }}>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Thinking...</span>
+      {/* CONTENT */}
+      <main className="flex-1 flex justify-center px-4 pb-32">
+        <div className="w-full max-w-2xl pt-6">
+          <div
+            className="chat-scroll overflow-y-auto pr-1"
+            style={{ maxHeight: "calc(100vh - 230px)" }}
+          >
+            {!isClient ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
               </div>
+            ) : (
+              <MessageWall
+                messages={messages}
+                status={status}
+                durations={durations}
+                onDurationChange={handleDuration}
+              />
             )}
           </div>
+
+          {/* Small loader */}
+          {status === "submitted" && (
+            <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin" /> Thinking…
+            </div>
+          )}
         </div>
       </main>
 
-      {/* Sticky composer at bottom */}
-      <div className="sticky bottom-0 z-50 bg-white/95 backdrop-blur-sm border-t" style={{ borderColor: "var(--border)" }}>
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <form id="chat-form" onSubmit={form.handleSubmit(onSubmit)}>
+      {/* COMPOSER */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-border py-4 px-4">
+        <div className="max-w-2xl mx-auto">
+          <form onSubmit={form.handleSubmit(onSubmit)}>
             <FieldGroup>
               <Controller
                 name="message"
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="chat-form-message" className="sr-only">Message</FieldLabel>
+                    <FieldLabel className="sr-only">Message</FieldLabel>
 
                     <div className="relative">
                       <Input
                         {...field}
-                        id="chat-form-message"
-                        className="h-14 rounded-full px-4 pr-14 bg-white shadow"
-                        placeholder="Type your message here..."
+                        placeholder="Type your message here…"
+                        className="h-14 rounded-full px-5 pr-14 shadow-md bg-white text-sm"
                         disabled={status === "streaming"}
-                        autoComplete="off"
                         onKeyDown={(e) => {
                           if (e.key === "Enter" && !e.shiftKey) {
                             e.preventDefault();
@@ -247,21 +199,23 @@ export default function Chat() {
                         }}
                       />
 
+                      {/* Send Button */}
                       {(status === "ready" || status === "error") && (
                         <Button
                           type="submit"
                           size="icon"
-                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full"
+                          className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full"
                           disabled={!field.value.trim()}
                         >
                           <ArrowUp className="w-4 h-4" />
                         </Button>
                       )}
 
+                      {/* Stop button */}
                       {(status === "streaming" || status === "submitted") && (
                         <Button
                           size="icon"
-                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full"
+                          className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full"
                           onClick={() => stop()}
                         >
                           <Square className="w-4 h-4" />
@@ -274,10 +228,15 @@ export default function Chat() {
             </FieldGroup>
           </form>
 
-          <div className="mt-3 text-center text-xs" style={{ color: "var(--muted-foreground)" }}>
+          <div className="mt-3 text-center text-xs text-muted-foreground">
             © {new Date().getFullYear()} {OWNER_NAME} &nbsp;
-            <Link href="/terms" className="underline">Terms of Use</Link> &nbsp;·&nbsp;
-            Powered by <Link href="https://ringel.ai/" className="underline">Ringel.AI</Link>
+            <Link href="/terms" className="underline">
+              Terms of Use
+            </Link>{" "}
+            · Powered by{" "}
+            <Link href="https://ringel.ai/" className="underline">
+              Ringel.AI
+            </Link>
           </div>
         </div>
       </div>
