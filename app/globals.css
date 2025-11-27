@@ -237,3 +237,20 @@ body::after {
   .input-pill { padding: 12px; max-width: calc(100% - 40px); }
   .ai-message, .user-message { max-width: calc(100% - 56px); }
 }
+
+/* ---- USER BUBBLE ORANGE FIX ---- */
+.user-message {
+  display: inline-block;
+  margin: 10px 0;
+  padding: 10px 18px;
+  border-radius: 999px;
+
+  /* ORANGE BUBBLE */
+  background: linear-gradient(180deg, #ff5f2e, #ff7a52);
+  color: #000; /* black text for contrast */
+
+  border: none;
+  box-shadow: 0 6px 22px rgba(255, 95, 46, 0.35);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
