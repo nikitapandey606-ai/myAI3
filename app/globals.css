@@ -80,20 +80,23 @@
 }
 
 @layer base {
+  /* Replace unknown @apply tokens with standard classes to avoid build errors */
   * {
-    @apply border-border outline-ring/50;
+    @apply border border-transparent;
+    outline: none;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
     overscroll-behavior: none;
   }
 
-  /* Links rendered as bubbles */
+  /* Links rendered as bubbles (valid utility classes only) */
   .single-char-link {
     @apply bg-card px-2 py-1 rounded-full text-card-foreground border border-input shadow-sm hover:scale-105 transition-all;
   }
 
-  /* Smooth scrolling */
+  /* Smooth scroll customization */
   .chat-scroll {
     scrollbar-width: thin;
     scrollbar-color: var(--muted) transparent;
