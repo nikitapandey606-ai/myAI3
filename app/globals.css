@@ -1,64 +1,54 @@
 /* app/globals.css
-   Cinematic dark theme — deep black + warm orange accents
-   Drop-in safe: only CSS variables and safe rules (no unknown tailwind @apply classes)
+   Cinematic Dark UI — refined Netflix × MUBI look
+   Paste this file over your existing globals.css
 */
 
+/* keep imports if your build expects them */
 @import "tailwindcss";
 @import "tw-animate-css";
-
-/* keep custom variant support if used elsewhere */
 @custom-variant dark (&:is(.dark *));
 
-/* Theme tokens (kept, but we override dark palette below) */
-@theme inline {
-  --font-sans: var(--font-inter);
-  --font-mono: var(--font-geist-mono);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-}
-
-/* Light defaults (safe fallback) */
+/* ---------------- theme tokens ---------------- */
 :root {
   --radius: 0.75rem;
-  --background: #0b0b0b;            /* default to dark to avoid flash */
-  --foreground: #eae6e2;
-  --card: #101010;
-  --card-foreground: #f6f4f2;
-  --muted: #151515;
-  --muted-foreground: #a8a29e;
-  --accent: #ff6a3d;                /* warm orange accent */
-  --accent-foreground: #0b0b0b;
-  --border: rgba(255,255,255,0.04);
-  --input: rgba(255,255,255,0.03);
+
+  /* base (we prefer dark straight away to remove flash) */
+  --background: #080808;           /* deep near-black */
+  --foreground: #efece8;           /* warm off-white for primary text */
+  --muted-foreground: #bdb6b0;     /* softer secondary */
+  --card: #0f0f10;                 /* message card base */
+  --card-foreground: #efece8;
+  --accent: #ff5f2e;               /* warm orange accent */
+  --accent-2: #ff784e;             /* slightly lighter accent for gradients */
+  --border: rgba(255,255,255,0.05);
+  --input: rgba(255,255,255,0.04);
   --ring: rgba(255,120,60,0.18);
-  --shadow-soft: 0 10px 30px rgba(0,0,0,0.6);
+  --shadow-soft: 0 18px 50px rgba(0,0,0,0.75);
+
+  --header-bg: linear-gradient(180deg, rgba(10,10,10,0.95), rgba(8,8,8,0.9));
+  --footer-bg: rgba(0,0,0,0.6);
 }
 
-/* Explicit dark theme palette — this will be active for .dark class and prefers-color-scheme */
-.dark,
-@media (prefers-color-scheme: dark) {
-  --background: #050505;            /* deep cinematic black */
-  --foreground: #efece9;            /* warm off-white text */
-  --card: #0f0f10;                  /* slightly lighter than background */
-  --card-foreground: #f7f6f5;
-  --muted: #111111;
+/* also apply when .dark is present (keeps consistent) */
+.dark {
+  --background: #050505;
+  --foreground: #efece8;
   --muted-foreground: #bdb6b0;
-  --accent: #ff5f2e;                /* Netflix-like warm orange */
-  --accent-foreground: #070706;
-  --border: rgba(255,255,255,0.04);
+  --card: #0e0e0f;
+  --accent: #ff5f2e;
+  --accent-2: #ff784e;
+  --border: rgba(255,255,255,0.05);
   --input: rgba(255,255,255,0.03);
   --ring: rgba(255,120,60,0.18);
-  --shadow-soft: 0 14px 50px rgba(0,0,0,0.7);
+  --header-bg: linear-gradient(180deg, rgba(6,6,6,1), rgba(10,10,10,0.98));
+  --footer-bg: rgba(6,6,6,0.9);
+  --shadow-soft: 0 18px 60px rgba(0,0,0,0.75);
 }
 
-/* ---------------- base rules (safe) ---------------- */
+/* ---------------- base / safety ---------------- */
 @layer base {
   * { box-sizing: border-box; scroll-behavior: smooth; }
-
   html, body, #__next { height: 100%; }
-
   body {
     margin: 0;
     padding: 0;
@@ -66,33 +56,29 @@
     color: var(--foreground);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, var(--font-sans);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Inter", sans-serif;
     line-height: 1.6;
   }
 
-  /* subtle film grain overlay in dark */
+  /* film grain — subtle, non intrusive */
   body::after {
     content: "";
     pointer-events: none;
     position: fixed;
     inset: 0;
-    background-image: radial-gradient(rgba(255,255,255,0.01) 1px, transparent 1px);
+    background-image: radial-gradient(rgba(255,255,255,0.007) 1px, transparent 1px);
     background-size: 3px 3px;
-    opacity: 0;
-    transition: opacity 220ms ease;
+    opacity: 0.012;
     z-index: 100000;
     mix-blend-mode: overlay;
-  }
-  .dark body::after,
-  @media (prefers-color-scheme: dark) {
-    body::after { opacity: 0.02; filter: grayscale(10%) contrast(80%); }
+    transition: opacity 180ms ease;
   }
 
-  /* scrollbars */
-  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  /* scrollbars (dark-friendly) */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.12));
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.18));
     border-radius: 999px;
     border: 2px solid transparent;
     background-clip: content-box;
@@ -109,80 +95,167 @@
     text-decoration: none;
     transition: transform 120ms ease, box-shadow 120ms ease;
   }
-  .single-char-link:hover { transform: translateY(-1px) scale(1.02); box-shadow: var(--shadow-soft); }
+  .single-char-link:hover { transform: translateY(-2px) scale(1.02); box-shadow: var(--shadow-soft); }
 }
 
-/* ---------------- chat UI polish ---------------- */
+/* ---------------- header styling ---------------- */
+/* make header fully cinematic: deep black, crisp text, orange-accent logo ring */
+header, .fixed.top-0 {
+  background: var(--header-bg);
+  color: var(--foreground);
+  border-bottom: 1px solid var(--border);
+}
 
-/* Ensure main background is pure black cinematic feel */
-.app-root, .chat-root, main {
-  background: var(--background);
+/* logo wrapper: orange ring and subtle glow */
+.header-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-logo .logo-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  overflow: hidden;
+  display: inline-grid;
+  place-items: center;
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  box-shadow: 0 6px 24px rgba(255,95,46,0.12), 0 2px 8px rgba(0,0,0,0.6);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* header text */
+.header-title {
+  font-weight: 700;
+  font-size: 15px;
   color: var(--foreground);
 }
+.header-sub {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin-top: -2px;
+}
 
-/* Chat container (centered column) */
+/* header button (new chat / theme toggles) */
+.header-controls button {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.06);
+  color: var(--foreground);
+  padding: 8px 10px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+.header-controls button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+/* ---------------- message area ---------------- */
+/* center column */
 .chat-scroll { scrollbar-gutter: stable; }
+.message-wall { font-size: 1rem; color: var(--foreground); line-height: 1.65; }
 
-/* Message wall basic adjustments */
-.message-wall { font-size: 1rem; color: var(--foreground); line-height: 1.7; }
-
-/* Assistant (left) bubble cinematic card */
+/* assistant bubble (left) */
 .ai-message {
   display: block;
   max-width: 72ch;
   margin: 18px 0;
-  padding: 18px;
+  padding: 18px 20px;
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
   border: 1px solid rgba(255,255,255,0.04);
   color: var(--card-foreground);
-  box-shadow: 0 10px 40px rgba(0,0,0,0.65);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.65);
 }
 
-/* User bubble (right) */
+/* user bubble (right) */
 .user-message {
   display: inline-block;
   margin: 10px 0;
-  padding: 10px 16px;
+  padding: 11px 18px;
   border-radius: 999px;
   background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
   color: var(--foreground);
   border: 1px solid rgba(255,255,255,0.04);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.55);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.55);
 }
 
-/* Top header title */
-.chat-header-title { font-weight: 700; letter-spacing: -0.02em; color: var(--foreground); }
+/* message small meta / tool label */
+.message-tool {
+  display: inline-flex;
+  gap: 8px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  margin: 12px 0;
+}
 
-/* Composer / input bar */
-.composer { background: linear-gradient(180deg, transparent, rgba(0,0,0,0.02)); padding: 16px; border-top: 1px solid var(--border); }
-.composer .input-pill {
+/* subtle fade animation for incoming assistant replies */
+.ai-message { animation: popIn 180ms ease; }
+@keyframes popIn { from { opacity: 0; transform: translateY(6px) } to { opacity:1; transform: translateY(0) } }
+
+/* ---------------- composer / input ---------------- */
+/* composer wrapper to match cinematic theme */
+.composer {
+  background: var(--footer-bg);
+  border-top: 1px solid var(--border);
+  padding: 18px 22px;
+}
+
+/* the big pill input */
+.input-pill {
   width: 100%;
-  border-radius: 999px;
-  padding: 14px 18px;
-  background: var(--card);
+  max-width: 820px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.03));
   border: 1px solid var(--input);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-  color: var(--card-foreground);
+  padding: 14px 18px;
+  border-radius: 999px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  color: var(--foreground);
 }
 
-/* Accent buttons like send or new chat */
-.btn-accent {
+/* input placeholder lighter */
+.input-pill input, .input-pill textarea {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--foreground);
+  width: 100%;
+  font-size: 15px;
+}
+
+/* send button circle */
+.send-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
   background: var(--accent);
   color: var(--accent-foreground);
-  border-radius: 10px;
-  padding: 8px 12px;
-  border: none;
-  cursor: pointer;
-  transition: transform .12s ease, box-shadow .12s ease;
+  border: 0;
+  box-shadow: 0 8px 30px rgba(255,95,46,0.16);
 }
-.btn-accent:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(0,0,0,0.6); }
 
-/* Footer */
-.app-footer { color: var(--muted-foreground); font-size: 12px; padding: 18px 0; text-align: center; }
-
-/* Responsive tweaks */
-@media (max-width: 640px) {
-  .ai-message, .user-message { max-width: calc(100% - 48px); }
-  .composer { padding: 12px; }
+/* ---------------- footer ---------------- */
+.app-footer {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  padding: 20px 0;
+  text-align: center;
+  background: transparent;
 }
+
+/* ---------------- responsive ---------------- */
+@media (max-width: 880px) {
+  .input-pill { padding: 12px 14px; max-width: calc(100% - 40px); }
+  .header-logo .logo-wrap { width: 40px; height: 40px; }
+  .header-title { font-size: 14px; }
+  .ai-message, .user-message { max-width: calc(100% - 56px); }
+}
+
+/* EOF */
